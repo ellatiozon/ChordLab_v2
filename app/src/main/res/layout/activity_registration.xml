@@ -4,6 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <!-- Background image — won't stretch -->
     <ImageView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -11,20 +12,11 @@
         android:scaleType="centerCrop"
         android:src="@drawable/register_bg" />
 
+    <!-- Foreground content -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/registration"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
-
-        <ImageView
-            android:id="@+id/btnBackReg"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_margin="16dp"
-            android:src="@android:drawable/ic_menu_revert"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:tint="#FFFFFF" />
 
         <TextView
             android:id="@+id/tvTitle"
@@ -75,7 +67,7 @@
                 android:layout_marginBottom="8dp"
                 android:background="@drawable/input_field_bg"
                 android:gravity="center_vertical"
-                android:hint=""
+                android:hint="I&lt;3Daniel"
                 android:paddingHorizontal="12dp"
                 android:textColor="#311B92"
                 android:textColorHint="#9E9E9E"
@@ -96,13 +88,14 @@
                 android:layout_marginBottom="8dp"
                 android:background="@drawable/input_field_bg"
                 android:gravity="center_vertical"
-                android:hint=""
+                android:hint="medpardilla@tip.edu.ph"
                 android:inputType="textEmailAddress"
                 android:paddingHorizontal="12dp"
                 android:textColor="#311B92"
                 android:textColorHint="#9E9E9E"
                 android:textSize="14sp" />
 
+            <!-- Password -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -131,16 +124,16 @@
 
                 <ImageView
                     android:id="@+id/iv_toggle_password"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
                     android:layout_alignParentEnd="true"
                     android:layout_centerVertical="true"
-                    android:layout_marginEnd="4dp"
-                    android:padding="8dp"
+                    android:layout_marginEnd="8dp"
                     android:src="@drawable/ic_visibility_on" />
 
             </RelativeLayout>
 
+            <!-- Confirm Password -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -169,12 +162,11 @@
 
                 <ImageView
                     android:id="@+id/iv_toggle_confirm_password"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
                     android:layout_alignParentEnd="true"
                     android:layout_centerVertical="true"
-                    android:layout_marginEnd="4dp"
-                    android:padding="8dp"
+                    android:layout_marginEnd="8dp"
                     android:src="@drawable/ic_visibility_on" />
 
             </RelativeLayout>

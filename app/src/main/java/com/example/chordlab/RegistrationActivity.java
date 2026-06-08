@@ -1,26 +1,22 @@
 package com.example.chordlab;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ImageView;
 import android.widget.Toast;
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
-import android.widget.ImageView;
 
 public class RegistrationActivity extends AppCompatActivity {
 
     DatabaseHelper myDb;
     EditText etUser, etEmail, etPass, etConfirmPass;
     Button btnNext;
-    ImageView ivTogglePassword, ivToggleConfirmPassword, btnBack;
-    boolean isPasswordVisible = false;
-    boolean isConfirmPasswordVisible = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,10 +36,8 @@ public class RegistrationActivity extends AppCompatActivity {
         etPass        = findViewById(R.id.et_password);
         etConfirmPass = findViewById(R.id.et_confirm_password);
         btnNext       = findViewById(R.id.btnNext);
-        btnBack = findViewById(R.id.btnBackReg);
 
         addData();
-        btnBack.setOnClickListener(v -> finish());
     }
 
     public void addData() {
@@ -87,11 +81,10 @@ public class RegistrationActivity extends AppCompatActivity {
                 getSharedPreferences("UserSession", MODE_PRIVATE)
                         .edit()
                         .putString("username", user)
-                        .putString("email", email)
-                        .putBoolean("detailsComplete", false)
+                        .putString("email",    email)
                         .apply();
 
-                Toast.makeText(this, "Welcome to ChordLab, " + user + "!", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, "Registration Successful!", Toast.LENGTH_LONG).show();
 
                 // New user → go to Details page
                 Intent intent = new Intent(RegistrationActivity.this, DetailsActivity.class);
@@ -103,38 +96,5 @@ public class RegistrationActivity extends AppCompatActivity {
                 Toast.makeText(this, "Registration Failed. Please try again.", Toast.LENGTH_LONG).show();
             }
         });
-
-        // Inside addData() method
-        ivTogglePassword = findViewById(R.id.iv_toggle_password);
-        ivToggleConfirmPassword = findViewById(R.id.iv_toggle_confirm_password);
-
-// Toggle for Main Password
-        ivTogglePassword.setOnClickListener(v -> {
-            isPasswordVisible = !isPasswordVisible;
-            if (isPasswordVisible) {
-                etPass.setTransformationMethod(android.text.method.HideReturnsTransformationMethod.getInstance());
-                ivTogglePassword.setImageResource(R.drawable.ic_visibility_off);
-            } else {
-                etPass.setTransformationMethod(android.text.method.PasswordTransformationMethod.getInstance());
-                ivTogglePassword.setImageResource(R.drawable.ic_visibility_on);
-            }
-            // Maintain cursor position
-            if (etPass.getText() != null) etPass.setSelection(etPass.getText().length());
-        });
-
-// Toggle for Confirm Password
-        ivToggleConfirmPassword.setOnClickListener(v -> {
-            isConfirmPasswordVisible = !isConfirmPasswordVisible;
-            if (isConfirmPasswordVisible) {
-                etConfirmPass.setTransformationMethod(android.text.method.HideReturnsTransformationMethod.getInstance());
-                ivToggleConfirmPassword.setImageResource(R.drawable.ic_visibility_off);
-            } else {
-                etConfirmPass.setTransformationMethod(android.text.method.PasswordTransformationMethod.getInstance());
-                ivToggleConfirmPassword.setImageResource(R.drawable.ic_visibility_on);
-            }
-            // Maintain cursor position
-            if (etConfirmPass.getText() != null) etConfirmPass.setSelection(etConfirmPass.getText().length());
-        });
     }
-
 }
