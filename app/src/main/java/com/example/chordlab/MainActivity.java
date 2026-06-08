@@ -70,6 +70,7 @@ public class MainActivity extends AppCompatActivity {
             flashAndNavigate((LinearLayout) v, () -> startSession("FLASHCARDS"));
         });
 
+        // Card 1: Standard Metronome
         findViewById(R.id.cardMetronome).setOnClickListener(v -> {
             flashAndNavigate((LinearLayout) v, () -> {
                 startActivity(new Intent(this, MetronomeActivity.class));

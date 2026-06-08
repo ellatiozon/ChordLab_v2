@@ -31,8 +31,10 @@
         <activity android:name=".DetailsActivity" android:exported="false" />
 
         <activity android:name=".MainActivity" android:exported="false" />
-        <activity android:name=".MetronomeActivity" android:exported="false" />
         <activity android:name=".DailyGoalActivity" android:exported="false" />
+
+        <activity android:name=".MetronomeActivity" android:exported="false" />
+        <activity android:name=".SmartMetronomeActivity" android:exported="false" />
 
         <activity android:name=".UkuleleActivity" android:exported="false" />
         <activity android:name=".GuitarActivity" android:exported="false" />
