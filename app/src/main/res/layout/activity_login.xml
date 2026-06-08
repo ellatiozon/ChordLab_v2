@@ -55,7 +55,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="User Name"
-            android:textColor="@color/bg_light_purple"
+            android:textColor="#311B92"
             android:textStyle="bold" />
 
         <EditText
@@ -64,7 +64,7 @@
             android:layout_height="40dp"
             android:layout_marginBottom="16dp"
             android:background="@drawable/input_field_bg"
-            android:hint=""
+            android:hint="I&lt;3Daniel"
             android:paddingHorizontal="12dp"
             android:textColorHint="#9E9E9E"
             android:textSize="14sp" />
@@ -73,7 +73,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Password"
-            android:textColor="@color/bg_light_purple"
+            android:textColor="#311B92"
+            android:textSize="12sp"
             android:textStyle="bold" />
 
         <RelativeLayout
@@ -96,14 +97,12 @@
 
             <ImageView
                 android:id="@+id/iv_toggle_password"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
                 android:layout_alignParentEnd="true"
                 android:layout_centerVertical="true"
-                android:layout_marginEnd="4dp"
-                android:padding="8dp"
-                android:src="@drawable/ic_visibility_on"
-                android:contentDescription="Toggle Password Visibility" />
+                android:layout_marginEnd="8dp"
+                android:src="@drawable/ic_visibility_on"/>
 
         </RelativeLayout>
     </LinearLayout>
@@ -139,7 +138,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Don't have an account? Sign up"
-            android:textColor="@color/card_white"
+            android:textColor="#E91E63"
             android:textSize="13sp" />
 
         <TextView

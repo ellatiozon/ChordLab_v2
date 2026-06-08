@@ -43,8 +43,8 @@
                     android:orientation="horizontal">
 
                     <ImageView
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
                         android:contentDescription="Back"
                         android:src="@drawable/ic_arrow_back"
                         android:tint="#FFFFFF" />
@@ -53,9 +53,9 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="6dp"
-                        android:text="Dashboard"
+                        android:text="Your Profile"
                         android:textColor="#FFFFFF"
-                        android:textSize="18sp"
+                        android:textSize="16sp"
                         android:textStyle="bold" />
                 </LinearLayout>
 
@@ -81,9 +81,8 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="CHORDLAB"
-                        android:textColor="#000000"
-                        android:layout_marginTop="20dp"
-                        android:textSize="14sp"
+                        android:textColor="#CCDDFF"
+                        android:textSize="11sp"
                         android:letterSpacing="0.2" />
 
                     <LinearLayout
@@ -96,8 +95,8 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Set Your Status"
-                            android:textColor="@color/accent_pink"
-                            android:textSize="30dp"
+                            android:textColor="#FFFFFF"
+                            android:textSize="26sp"
                             android:textStyle="bold" />
 
                         <TextView
@@ -315,54 +314,49 @@
                     <Button
                         android:id="@+id/goal10"
                         android:layout_width="0dp"
-                        android:layout_height="50dp"
+                        android:layout_height="40dp"
                         android:layout_marginEnd="8dp"
                         android:layout_weight="1"
                         android:background="@drawable/bg_sig_normal"
                         android:backgroundTint="@null"
                         android:text="10 mins"
-                        android:textColor="#424242"
-                        android:textSize="12sp"
-                        android:textStyle="bold" />
+                        android:textColor="#FFFFFF"
+                        android:textSize="12sp" />
 
                     <Button
-                    android:id="@+id/goal20"
-                    android:layout_width="0dp"
-                    android:layout_height="50dp"
-                    android:layout_marginEnd="8dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/bg_sig_selected"
-                    android:backgroundTint="@null"
-                    android:text="20 mins"
-                    android:textColor="#FFFFFF"
-                    android:textSize="12sp"
-                    android:textStyle="bold" />
+                        android:id="@+id/goal20"
+                        android:layout_width="0dp"
+                        android:layout_height="40dp"
+                        android:layout_marginEnd="8dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_sig_selected"
+                        android:backgroundTint="@null"
+                        android:text="20 mins"
+                        android:textColor="#FFFFFF"
+                        android:textSize="12sp" />
 
                     <Button
                         android:id="@+id/goal30"
                         android:layout_width="0dp"
-                        android:layout_height="50dp"
+                        android:layout_height="40dp"
                         android:layout_marginEnd="8dp"
                         android:layout_weight="1"
                         android:background="@drawable/bg_sig_normal"
                         android:backgroundTint="@null"
                         android:text="30 mins"
-                        android:textColor="#424242"
-                        android:textSize="12sp"
-                        android:textStyle="bold" />
+                        android:textColor="#FFFFFF"
+                        android:textSize="12sp" />
 
                     <Button
                         android:id="@+id/goal60"
                         android:layout_width="0dp"
-                        android:layout_height="50dp"
-                        android:layout_marginEnd="8dp"
+                        android:layout_height="40dp"
                         android:layout_weight="1"
                         android:background="@drawable/bg_sig_normal"
                         android:backgroundTint="@null"
-                        android:text="1 hour"
-                        android:textColor="#424242"
-                        android:textSize="12sp"
-                        android:textStyle="bold" />
+                        android:text="1 hr"
+                        android:textColor="#FFFFFF"
+                        android:textSize="12sp" />
                 </LinearLayout>
 
             </LinearLayout>
