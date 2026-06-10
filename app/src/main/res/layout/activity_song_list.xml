@@ -6,6 +6,7 @@
     android:background="@drawable/main_dashboard_bg"
     android:orientation="vertical">
 
+    <!-- EXISTING HEADER -->
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -75,6 +76,19 @@
         </LinearLayout>
     </RelativeLayout>
 
+    <!-- NEW SEARCH BAR AREA -->
+    <androidx.appcompat.widget.SearchView
+        android:id="@+id/searchViewSongs"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="12dp"
+        android:background="#E6FFFFFF"
+        android:elevation="2dp"
+        app:queryHint="Search title or artist..."
+        app:iconifiedByDefault="false" />
+
+    <!-- EXISTING RECYCLERVIEW -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerViewSongs"
         android:layout_width="match_parent"

@@ -312,7 +312,7 @@ public class MetronomeActivity extends AppCompatActivity {
 
         pendulumDot.post(() -> {
             // Get parent width to know how far to slide
-            int parentWidth = ((View) pendulumDot.getParent()).getWidth();
+            int parentWidth = ((android.view.View) pendulumDot.getParent()).getWidth();
             int dotWidth    = pendulumDot.getWidth();
 
             if (parentWidth == 0) return; // Prevent layout issues before fully drawn
