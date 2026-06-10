@@ -33,6 +33,10 @@
         <activity android:name=".MainActivity" android:exported="false" />
         <activity android:name=".MetronomeActivity" android:exported="false" />
         <activity android:name=".DailyGoalActivity" android:exported="false" />
+        <activity android:name=".SongListActivity" android:exported="false" />
+        <activity android:name=".SongPracticeActivity" android:exported="false" />
+        <activity android:name=".VideoTranslatorActivity" android:exported="false" />
+        <activity android:name=".ChordLibraryActivity" android:exported="false" />
 
         <activity android:name=".UkuleleActivity" android:exported="false" />
         <activity android:name=".GuitarActivity" android:exported="false" />

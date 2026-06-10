@@ -5,7 +5,6 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
@@ -16,8 +15,6 @@ public class LoginActivity extends AppCompatActivity {
     EditText etUser, etPass;
     Button btnSignIn;
     SessionManager session;
-    ImageView ivTogglePassword;
-    boolean isPasswordVisible = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -26,9 +23,27 @@ public class LoginActivity extends AppCompatActivity {
 
         session = new SessionManager(this);
 
-        // 1. Auto-login check: Go straight to Dashboard if already logged in
+        // Auto-login check
         if (session.isLoggedIn()) {
-            goToDashboard();
+            SharedPreferences userPrefs = getSharedPreferences("UserSession", MODE_PRIVATE);
+            String username = userPrefs.getString("username", "");
+
+            SharedPreferences detailsPrefs = getSharedPreferences("DetailsPrefs", MODE_PRIVATE);
+            boolean detailsComplete = detailsPrefs.getBoolean(username + "_detailsComplete", false);
+
+            if (!detailsComplete) {
+                startActivity(new Intent(this, DetailsActivity.class));
+            } else {
+                // Restore instrument and goal for this user
+                String instrument = detailsPrefs.getString(username + "_instrument", "Guitar");
+                String dailyGoal  = detailsPrefs.getString(username + "_dailyGoal",  "20 mins");
+                userPrefs.edit()
+                        .putString("instrument", instrument)
+                        .putString("dailyGoal",  dailyGoal)
+                        .apply();
+                goToDashboard();
+            }
+            finish();
             return;
         }
 
@@ -54,54 +69,38 @@ public class LoginActivity extends AppCompatActivity {
                 // Save session
                 session.saveSession(user, "");
 
-                // Save username to UserSession for app-wide use
+                // Save username to UserSession
                 SharedPreferences userPrefs = getSharedPreferences("UserSession", MODE_PRIVATE);
                 userPrefs.edit().putString("username", user).apply();
 
-                // 2. Restore saved details to the current session (Optional but helpful)
-                SharedPreferences detailsPrefs = getSharedPreferences("DetailsPrefs", MODE_PRIVATE);
-                String instrument = detailsPrefs.getString(user + "_instrument", "Guitar");
-                String dailyGoal  = detailsPrefs.getString(user + "_dailyGoal",  "20 mins");
-
-                userPrefs.edit()
-                        .putString("instrument", instrument)
-                        .putString("dailyGoal",  dailyGoal)
-                        .apply();
-
                 Toast.makeText(this, "Login Successful!", Toast.LENGTH_SHORT).show();
 
-                // 3. Go straight to Dashboard
-                goToDashboard();
+                // Check if this user has completed details before
+                SharedPreferences detailsPrefs = getSharedPreferences("DetailsPrefs", MODE_PRIVATE);
+                boolean detailsComplete = detailsPrefs.getBoolean(user + "_detailsComplete", false);
+
+                if (!detailsComplete) {
+                    startActivity(new Intent(this, DetailsActivity.class));
+                } else {
+                    // Restore their saved instrument and goal
+                    String instrument = detailsPrefs.getString(user + "_instrument", "Guitar");
+                    String dailyGoal  = detailsPrefs.getString(user + "_dailyGoal",  "20 mins");
+                    userPrefs.edit()
+                            .putString("instrument", instrument)
+                            .putString("dailyGoal",  dailyGoal)
+                            .apply();
+                    goToDashboard();
+                }
+                finish();
 
             } else {
                 Toast.makeText(this, "Invalid Username or Password", Toast.LENGTH_SHORT).show();
             }
         });
-
-        ivTogglePassword = findViewById(R.id.iv_toggle_password);
-        ivTogglePassword.setOnClickListener(v -> {
-            isPasswordVisible = !isPasswordVisible;
-
-            if (isPasswordVisible) {
-                // 1. Show Password: Use HideReturnsTransformationMethod
-                etPass.setTransformationMethod(android.text.method.HideReturnsTransformationMethod.getInstance());
-                ivTogglePassword.setImageResource(R.drawable.ic_visibility_off);
-            } else {
-                // 2. Hide Password: Use PasswordTransformationMethod
-                etPass.setTransformationMethod(android.text.method.PasswordTransformationMethod.getInstance());
-                ivTogglePassword.setImageResource(R.drawable.ic_visibility_on);
-            }
-
-            // 3. CRITICAL: Move cursor to the end so it doesn't jump to the start
-            if (etPass.getText() != null) {
-                etPass.setSelection(etPass.getText().length());
-            }
-        });
     }
 
     private void goToDashboard() {
-        Intent intent = new Intent(LoginActivity.this, MainActivity.class);
-        // This ensures the user can't press 'Back' to return to the Login screen
+        Intent intent = new Intent(LoginActivity.this, DashboardActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();
