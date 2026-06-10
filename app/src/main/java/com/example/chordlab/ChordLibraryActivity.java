@@ -22,7 +22,7 @@ public class ChordLibraryActivity extends AppCompatActivity {
     private LinearLayout layoutRootNotes, layoutQualities, layoutPianoMode;
     private HorizontalScrollView scrollQualities;
     private View divider2;
-    private ImageView ivChordDiagram, btnPlayChordSound, btnBackToDashboard, ivFingeringGuide;
+    private ImageView ivChordDiagram, btnPlayChordSound, btnBackToDashboard;
 
     // ── INTERNAL STATE tracking constants ──────────────────────────────────
     private String selectedInstrument = "guitar"; // Default fallback state
@@ -48,17 +48,11 @@ public class ChordLibraryActivity extends AppCompatActivity {
         initializeViews();
         setupStaticListeners();
 
-        // USER REQUESTED CHANGE: Check if piano to render Note/Chord toggle & hide guide
+        // USER REQUESTED CHANGE: Check if piano to render Note/Chord toggle
         if (selectedInstrument.equals("piano")) {
             layoutPianoMode.setVisibility(View.VISIBLE);
             tvPromptText.setText("CHOOSE A TARGET");
             generatePianoModeButtons();
-
-            // Hide the fingering guide for Piano
-            ivFingeringGuide.setVisibility(View.GONE);
-        } else {
-            // Ensure the guide is visible for Guitar and Ukulele
-            ivFingeringGuide.setVisibility(View.VISIBLE);
         }
 
         generateRootNoteButtons();
@@ -78,7 +72,6 @@ public class ChordLibraryActivity extends AppCompatActivity {
         ivChordDiagram       = findViewById(R.id.ivChordDiagram);
         btnPlayChordSound    = findViewById(R.id.btnPlayChordSound);
         btnBackToDashboard   = findViewById(R.id.btnBackToDashboard);
-        ivFingeringGuide     = findViewById(R.id.ivFingeringGuide); // Added reference here
 
         String displayInstrument = selectedInstrument.substring(0, 1).toUpperCase() + selectedInstrument.substring(1);
         tvHeaderTitle.setText(displayInstrument + " Library");
