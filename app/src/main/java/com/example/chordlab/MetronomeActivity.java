@@ -1,5 +1,6 @@
 package com.example.chordlab;
 
+import android.content.Intent;
 import android.media.AudioAttributes;
 import android.media.AudioFormat;
 import android.media.AudioTrack;
@@ -24,6 +25,7 @@ public class MetronomeActivity extends AppCompatActivity {
     private Button btnDecrease, btnIncrease;
     private Button btnStart;
     private Button btnTapTempo;
+    private Button btnUploadFile; // Added
     private Button btnSig44, btnSig34, btnSig68, btnSig24;
     private View[] beatViews;
 
@@ -65,6 +67,7 @@ public class MetronomeActivity extends AppCompatActivity {
         setupTimeSignatureButtons();
         setupStartButton();
         setupTapTempo();
+        setupUploadButton(); // Added
         setupBackButton();
 
         updateBpmDisplay();
@@ -79,6 +82,7 @@ public class MetronomeActivity extends AppCompatActivity {
         btnIncrease   = findViewById(R.id.btnIncrease);
         btnStart      = findViewById(R.id.btnStart);
         btnTapTempo   = findViewById(R.id.btnTapTempo);
+        btnUploadFile = findViewById(R.id.btnUploadFile); // Added
         btnSig44      = findViewById(R.id.btnSig44);
         btnSig34      = findViewById(R.id.btnSig34);
         btnSig68      = findViewById(R.id.btnSig68);
@@ -311,6 +315,17 @@ public class MetronomeActivity extends AppCompatActivity {
             // Keep last 8 taps
             if (tapTimes.size() > 8) tapTimes.remove(0);
         });
+    }
+
+    // ── Upload File Button ───────────────────────────────────────────────────
+    private void setupUploadButton() {
+        if (btnUploadFile != null) {
+            btnUploadFile.setOnClickListener(v -> {
+                // Navigate to the AI Smart Metronome Activity
+                Intent intent = new Intent(MetronomeActivity.this, SmartMetronomeActivity.class);
+                startActivity(intent);
+            });
+        }
     }
 
     // ── Back button ──────────────────────────────────────────────────────────

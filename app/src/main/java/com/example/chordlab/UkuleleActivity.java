@@ -16,6 +16,7 @@ package com.example.chordlab;
 import android.Manifest;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.media.MediaPlayer;
 import android.os.Bundle;
@@ -64,6 +65,10 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
     private CountDownTimer flashcardTimer;
     private final long TIME_LIMIT_MS = 13000;
 
+    // Add these with your other variables at the top
+    private InstrumentGatekeeper gatekeeper;
+    private Bitmap currentFrameBitmap;
+
     private final ActivityResultLauncher<String> requestPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
                 if (isGranted) startCamera();
@@ -81,6 +86,7 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
 
         cameraExecutor = Executors.newSingleThreadExecutor();
         aiHelper = new HandLandmarkerHelper(this, this);
+        gatekeeper = new InstrumentGatekeeper(this);
         successSound = MediaPlayer.create(this, R.raw.correct_answer);
 
         setupUI();
@@ -244,6 +250,9 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
                         .build();
 
                 imageAnalysis.setAnalyzer(cameraExecutor, imageProxy -> {
+                    // CAPTURE THE BITMAP HERE
+                    currentFrameBitmap = imageProxy.toBitmap();
+
                     aiHelper.detectLiveStream(imageProxy);
                     imageProxy.close();
                 });
@@ -264,6 +273,21 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
             List<NormalizedLandmark> hand = result.landmarks().get(0);
             String target = ukuleleChords[currentChordIndex];
 
+            // 1. RUN THE GATEKEEPER FIRST
+            boolean isUkulelePresent = gatekeeper.verifyUkulele(currentFrameBitmap, hand);
+
+            if (!isUkulelePresent) {
+                runOnUiThread(() -> {
+                    binding.txtFeedback.setText("Hold the Ukulele properly!");
+                    binding.txtFeedback.setBackgroundColor(Color.parseColor("#FFCDD2")); // Red
+                    binding.txtFeedback.setTextColor(Color.parseColor("#B71C1C"));
+                    binding.overlayView.setResults(null); // Clear hand tracking overlay
+                });
+                return; // HALT PIPELINE: Do not run chord detection
+            }
+// --------------------------------
+
+// If it passed the gatekeeper, proceed as normal:
             DetectionResult resultObj = ChordAnalyzer.detectChord(hand, target, "UKULELE", this);
 
             runOnUiThread(() -> {
@@ -337,5 +361,7 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
         if (successSound != null) successSound.release();
         cameraExecutor.shutdown();
         if (aiHelper != null) aiHelper.close();
+        // Add this below aiHelper.close();
+        if (gatekeeper != null) gatekeeper.close();
     }
 }

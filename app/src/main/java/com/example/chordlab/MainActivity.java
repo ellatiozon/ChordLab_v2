@@ -76,6 +76,14 @@ public class MainActivity extends AppCompatActivity {
             });
         });
 
+        // Correctly placed inside onCreate()
+        findViewById(R.id.cardVideoTranslator).setOnClickListener(v -> {
+            flashAndNavigate((LinearLayout) v, () -> {
+                Intent intent = new Intent(this, PianoVideoTranslationActivity.class);
+                startActivity(intent);
+            });
+        });
+
         findViewById(R.id.ivProfileBtn).setOnClickListener(v -> {
             ProfileSheetFragment sheet = ProfileSheetFragment.newInstance();
             sheet.show(getSupportFragmentManager(), "profile");

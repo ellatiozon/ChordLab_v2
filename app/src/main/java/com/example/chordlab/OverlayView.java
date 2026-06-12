@@ -33,6 +33,8 @@ public class OverlayView extends View {
     private Paint pointPaint;
     private Paint linePaint;
 
+    private Paint boundingBoxPaint;
+
     // Scaling variables
     private float scaleFactor = 1f;
     private float leftOffset = 0f;
@@ -60,6 +62,11 @@ public class OverlayView extends View {
         linePaint.setStrokeWidth(8f);
         linePaint.setStyle(Paint.Style.STROKE);
         linePaint.setAntiAlias(true);
+
+        boundingBoxPaint = new Paint();
+        boundingBoxPaint.setColor(Color.RED);
+        boundingBoxPaint.setStyle(Paint.Style.STROKE);
+        boundingBoxPaint.setStrokeWidth(8f); // Thickness of the box
     }
 
     public void setResults(HandLandmarkerResult handLandmarkerResult) {
@@ -85,8 +92,11 @@ public class OverlayView extends View {
         List<NormalizedLandmark> handLandmarks = results.landmarks().get(0);
 
         if (handLandmarks.size() >= 21) {
-            drawSkeleton(canvas, handLandmarks);
+            // 1. DRAW THE DYNAMIC BOUNDING BOX (THE GATEKEEPER'S VIEW)
+            drawGatekeeperBox(canvas, handLandmarks);
 
+            // 2. DRAW SKELETON AND POINTS
+            drawSkeleton(canvas, handLandmarks);
             for (NormalizedLandmark landmark : handLandmarks) {
                 canvas.drawCircle(
                         getCanvasX(landmark.x()),
@@ -96,6 +106,38 @@ public class OverlayView extends View {
                 );
             }
         }
+    }
+
+    private void drawGatekeeperBox(Canvas canvas, List<NormalizedLandmark> handLandmarks) {
+        float minX = 1.0f, maxX = 0.0f, minY = 1.0f, maxY = 0.0f;
+
+        // Find boundaries
+        for (NormalizedLandmark landmark : handLandmarks) {
+            if (landmark.x() < minX) minX = landmark.x();
+            if (landmark.x() > maxX) maxX = landmark.x();
+            if (landmark.y() < minY) minY = landmark.y();
+            if (landmark.y() > maxY) maxY = landmark.y();
+        }
+
+        // Apply the same 25% padding as the InstrumentGatekeeper
+        float padding = 0.25f;
+
+        // Calculate the box edges in normalized coordinates
+        float boxMinX = Math.max(0, minX - padding);
+        float boxMaxX = Math.min(1, maxX + padding);
+        float boxMinY = Math.max(0, minY - padding);
+        float boxMaxY = Math.min(1, maxY + padding);
+
+        // Convert to Canvas Pixels
+        // Note: Because getCanvasX handles mirroring (1f - x),
+        // the screen "left" corresponds to the larger raw X value.
+        float left = getCanvasX(boxMaxX);
+        float right = getCanvasX(boxMinX);
+        float top = getCanvasY(boxMinY);
+        float bottom = getCanvasY(boxMaxY);
+
+        // Draw the rectangle
+        canvas.drawRect(left, top, right, bottom, boundingBoxPaint);
     }
 
     private float getCanvasX(float normalizedX) {

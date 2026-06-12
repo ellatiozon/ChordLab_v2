@@ -35,6 +35,15 @@ android {
         resources {
             excludes += '/META-INF/{AL2.0,LGPL2.1}'
         }
+        // NEW: Fixes the OpenCV & FFmpeg duplicate C++ library crash
+        jniLibs {
+            pickFirsts += [
+                    'lib/arm64-v8a/libc++_shared.so',
+                    'lib/armeabi-v7a/libc++_shared.so',
+                    'lib/x86/libc++_shared.so',
+                    'lib/x86_64/libc++_shared.so'
+            ]
+        }
     }
 
     androidResources {
@@ -88,4 +97,7 @@ dependencies {
     implementation(project(":opencv"))
 
     implementation 'de.hdodenhof:circleimageview:3.1.0'
+
+    // FFmpegKit - Updated to a stable version from Maven Central
+    implementation 'io.github.maxrave-dev:ffmpeg-kit-audio:6.0.1'
 }
