@@ -86,7 +86,8 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
 
         cameraExecutor = Executors.newSingleThreadExecutor();
         aiHelper = new HandLandmarkerHelper(this, this);
-        gatekeeper = new InstrumentGatekeeper(this);
+        // Assuming you name the file ukulele_gatekeeper.tflite in your assets folder
+        gatekeeper = new InstrumentGatekeeper(this, "ukulele_gatekeeper.tflite");
         successSound = MediaPlayer.create(this, R.raw.correct_answer);
 
         setupUI();
@@ -125,7 +126,7 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
     private void setupUI() {
         binding.btnBack.setOnClickListener(v -> finish());
         binding.btnBack.setOnClickListener(v -> finish());
-        binding.overlayView.setVisibility(View.GONE);
+        binding.overlayView.setVisibility(View.VISIBLE);
 
         if (sessionMode.equals("FLASHCARDS")) {
             binding.txtModeSubtitle.setText("CURRENT CARD");
@@ -274,23 +275,28 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
             String target = ukuleleChords[currentChordIndex];
 
             // 1. RUN THE GATEKEEPER FIRST
-            boolean isUkulelePresent = gatekeeper.verifyUkulele(currentFrameBitmap, hand);
+            boolean isPresent = gatekeeper.verifyInstrument(currentFrameBitmap, hand);
 
-            if (!isUkulelePresent) {
+            if (!isPresent) {
                 runOnUiThread(() -> {
-                    binding.txtFeedback.setText("Hold the Ukulele properly!");
-                    binding.txtFeedback.setBackgroundColor(Color.parseColor("#FFCDD2")); // Red
-                    binding.txtFeedback.setTextColor(Color.parseColor("#B71C1C"));
-                    binding.overlayView.setResults(null); // Clear hand tracking overlay
-                });
-                return; // HALT PIPELINE: Do not run chord detection
-            }
-// --------------------------------
+                    // Tell it the screen size and pass the active hand points!
+                    binding.overlayView.setImageSourceInfo(imageWidth, imageHeight);
+                    binding.overlayView.setResults(result);
 
-// If it passed the gatekeeper, proceed as normal:
+                    binding.txtFeedback.setText("Hold the Ukulele properly!");
+                    binding.txtFeedback.setBackgroundColor(Color.parseColor("#FFCDD2"));
+                    binding.txtFeedback.setTextColor(Color.parseColor("#B71C1C"));
+                });
+                return;
+            }
+
+            // If it passed the gatekeeper, proceed to chord detection:
             DetectionResult resultObj = ChordAnalyzer.detectChord(hand, target, "UKULELE", this);
 
             runOnUiThread(() -> {
+                // ADD THIS LINE HERE: This scales the landmarks to your screen!
+                binding.overlayView.setImageSourceInfo(imageWidth, imageHeight);
+
                 binding.overlayView.setResults(result);
 
                 if (resultObj.isMatch) {
@@ -305,7 +311,7 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
 
                         if (!hasDinged) {
                             if (successSound != null) successSound.start();
-                            awardXPAndChords(); // AWARD XP HERE
+                            awardXPAndChords();
                             hasDinged = true;
                         }
 

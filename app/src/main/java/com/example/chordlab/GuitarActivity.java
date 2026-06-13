@@ -1,21 +1,9 @@
 package com.example.chordlab;
 
-/**
- * ChordLab: Polyphonic Note and Chord Detection System
- * * This file is a core component of the ChordLab backend architecture,
- * handling AI processing, multimodal sensor fusion, and/or state management.
- *
- * @author Mikhaella Mari D. Tiozon
- * @version 1.0
- * @since 2026-04-17
- * * Note: The algorithmic logic, machine learning integration, and database
- * architecture contained within this file are the original intellectual
- * property of the author.
- */
-
 import android.Manifest;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.media.MediaPlayer;
 import android.os.Bundle;
@@ -49,6 +37,9 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
     private HandLandmarkerHelper aiHelper;
     private MediaPlayer successSound;
 
+    // 1. ADD THE GATEKEEPER
+    private InstrumentGatekeeper gatekeeper;
+
     private String sessionMode = "PRACTICE";
 
     private final String[] guitarChords = {
@@ -63,6 +54,8 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
 
     private CountDownTimer flashcardTimer;
     private final long TIME_LIMIT_MS = 13000;
+
+    private Bitmap currentFrameBitmap;
 
     private final ActivityResultLauncher<String> requestPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
@@ -82,6 +75,10 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
         cameraExecutor = Executors.newSingleThreadExecutor();
         aiHelper = new HandLandmarkerHelper(this, this);
         successSound = MediaPlayer.create(this, R.raw.correct_answer);
+
+        // 2. INITIALIZE GATEKEEPER
+        // Assuming you name the file guitar_gatekeeper.tflite in your assets folder
+        gatekeeper = new InstrumentGatekeeper(this, "guitar_gatekeeper.tflite");
 
         setupUI();
 
@@ -118,7 +115,9 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
 
     private void setupUI() {
         binding.btnBack.setOnClickListener(v -> finish());
-        binding.overlayView.setVisibility(View.GONE);
+
+        // FIX: Ensure the visual debug box is visible!
+        binding.overlayView.setVisibility(View.VISIBLE);
 
         if (sessionMode.equals("FLASHCARDS")) {
             binding.txtModeSubtitle.setText("CURRENT CARD");
@@ -168,6 +167,7 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
     }
 
     private String getChordGuideText(String chordName) {
+        // ... (Kept original text to save space, unchanged)
         switch (chordName) {
             case "A Major": return "1. Index → 2nd fret, 4th string (D)\n2. Middle → 2nd fret, 3rd string (G)\n3. Ring → 2nd fret, 2nd string (B)\nMute the 6th (E) string.";
             case "A Minor": return "1. Index → 1st fret, 2nd string (B)\n2. Middle → 2nd fret, 4th string (D)\n3. Ring → 2nd fret, 3rd string (G)\nMute the 6th (E) string.";
@@ -237,6 +237,9 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
                         .build();
 
                 imageAnalysis.setAnalyzer(cameraExecutor, imageProxy -> {
+
+                    currentFrameBitmap = imageProxy.toBitmap();
+
                     aiHelper.detectLiveStream(imageProxy);
                     imageProxy.close();
                 });
@@ -257,9 +260,30 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
             List<NormalizedLandmark> hand = result.landmarks().get(0);
             String target = guitarChords[currentChordIndex];
 
+            // 1. GET THE BITMAP FRAME FROM YOUR AI HELPER
+
+            // 2. RUN THE GATEKEEPER FOR "GUITAR"
+            boolean isGuitarPresent = false;
+            if (gatekeeper != null && currentFrameBitmap != null) {
+                boolean isPresent = gatekeeper.verifyInstrument(currentFrameBitmap, hand);
+            }
+
+            if (!isGuitarPresent) {
+                runOnUiThread(() -> {
+                    binding.overlayView.setImageSourceInfo(imageWidth, imageHeight);
+                    binding.overlayView.setResults(result);
+                    binding.txtFeedback.setText("Hold the Guitar properly!");
+                    binding.txtFeedback.setBackgroundColor(Color.parseColor("#FFCDD2")); // Red
+                    binding.txtFeedback.setTextColor(Color.parseColor("#B71C1C"));
+                });
+                return; // HALT PIPELINE: Do not run chord detection
+            }
+
+            // 3. ONLY RUN CHORD DETECTION IF THE GUITAR IS PRESENT
             DetectionResult resultObj = GuitarChordAnalyzer.detectChord(hand, target, this);
 
             runOnUiThread(() -> {
+                binding.overlayView.setImageSourceInfo(imageWidth, imageHeight);
                 binding.overlayView.setResults(result);
 
                 if (resultObj.isMatch) {
@@ -340,5 +364,8 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
         if (successSound != null) successSound.release();
         cameraExecutor.shutdown();
         if (aiHelper != null) aiHelper.close();
+
+        // 3. CLEAN UP MEMORY
+        if (gatekeeper != null) gatekeeper.close();
     }
 }

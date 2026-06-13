@@ -111,7 +111,6 @@ public class OverlayView extends View {
     private void drawGatekeeperBox(Canvas canvas, List<NormalizedLandmark> handLandmarks) {
         float minX = 1.0f, maxX = 0.0f, minY = 1.0f, maxY = 0.0f;
 
-        // Find boundaries
         for (NormalizedLandmark landmark : handLandmarks) {
             if (landmark.x() < minX) minX = landmark.x();
             if (landmark.x() > maxX) maxX = landmark.x();
@@ -119,25 +118,29 @@ public class OverlayView extends View {
             if (landmark.y() > maxY) maxY = landmark.y();
         }
 
-        // Apply the same 25% padding as the InstrumentGatekeeper
-        float padding = 0.25f;
+        float handWidth = maxX - minX;
+        float handHeight = maxY - minY;
 
-        // Calculate the box edges in normalized coordinates
-        float boxMinX = Math.max(0, minX - padding);
-        float boxMaxX = Math.min(1, maxX + padding);
-        float boxMinY = Math.max(0, minY - padding);
-        float boxMaxY = Math.min(1, maxY + padding);
+        // ASYMMETRICAL PADDING
+        float xPadding = handWidth * 0.50f;
+        float yBottomPadding = handHeight * 0.50f;
+        float yTopPadding = handHeight * 2.50f;
 
-        // Convert to Canvas Pixels
-        // Note: Because getCanvasX handles mirroring (1f - x),
-        // the screen "left" corresponds to the larger raw X value.
+        // Apply asymmetrical boundaries
+        float boxMinX = Math.max(0, minX - xPadding);
+        float boxMaxX = Math.min(1, maxX + xPadding);
+        float boxMinY = Math.max(0, minY - yTopPadding); // Uses yTopPadding
+        float boxMaxY = Math.min(1, maxY + yBottomPadding); // Uses yBottomPadding
+
         float left = getCanvasX(boxMaxX);
         float right = getCanvasX(boxMinX);
         float top = getCanvasY(boxMinY);
         float bottom = getCanvasY(boxMaxY);
 
-        // Draw the rectangle
-        canvas.drawRect(left, top, right, bottom, boundingBoxPaint);
+        canvas.drawLine(left, top, right, top, boundingBoxPaint);
+        canvas.drawLine(left, bottom, right, bottom, boundingBoxPaint);
+        canvas.drawLine(left, top, left, bottom, boundingBoxPaint);
+        canvas.drawLine(right, top, right, bottom, boundingBoxPaint);
     }
 
     private float getCanvasX(float normalizedX) {
