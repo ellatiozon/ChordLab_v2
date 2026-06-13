@@ -63,6 +63,23 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return exists;
     }
 
+    // ─── NEW METHOD: FETCH EMAIL LINKED TO THE USERNAME ───
+    public String getUserEmail(String username) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        String email = "";
+
+        Cursor cursor = db.rawQuery("SELECT " + COL_3 + " FROM " + TABLE_NAME + " WHERE " + COL_2 + "=?", new String[]{username});
+
+        if (cursor != null) {
+            if (cursor.moveToFirst()) {
+                // Fetch email from column index 0 safely
+                email = cursor.getString(0);
+            }
+            cursor.close();
+        }
+        return email;
+    }
+
     public Cursor getUserData(String username) {
         SQLiteDatabase db = this.getReadableDatabase();
         return db.rawQuery("SELECT * FROM " + TABLE_NAME + " WHERE USERNAME=?", new String[]{username});
@@ -132,7 +149,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     }
 
     // ============================================
-    // --- NEW: CHORDS LEARNED TRACKER METHODS ---
+    // --- CHORDS LEARNED TRACKER METHODS ---
     // ============================================
 
     public int getChordsLearned(String username) {
