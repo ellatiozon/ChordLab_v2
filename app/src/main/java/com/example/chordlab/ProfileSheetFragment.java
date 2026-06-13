@@ -6,7 +6,6 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -29,75 +28,35 @@ public class ProfileSheetFragment extends BottomSheetDialogFragment {
         return inflater.inflate(R.layout.fragment_profile_sheet, container, false);
     }
 
+    // ─── REPLACE EVERYTHING FROM HERE DOWN TO THE END OF THE FILE ───
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        SharedPreferences prefs = requireActivity()
+        // 1. Initialize your SessionManager instead of raw SharedPreferences
+        SessionManager sessionManager = new SessionManager(requireContext());
+
+        // 2. Pull the values dynamically using your SessionManager methods
+        String username   = sessionManager.getUsername();
+        String email      = sessionManager.getEmail();
+
+        // Note: If instrument and dailyGoal are stored in a different file, keep this block.
+        SharedPreferences legacyPrefs = requireActivity()
                 .getSharedPreferences("UserSession", android.content.Context.MODE_PRIVATE);
+        String instrument = legacyPrefs.getString("instrument", "Guitar");
 
-        String username = prefs.getString("username", "Username");
-        String email    = prefs.getString("email",    "username@gmail.com");
-
-        // ── Read instrument and dailyGoal from DB (source of truth) ──
-        DatabaseHelper myDb = new DatabaseHelper(requireContext());
-        String instrument = "Guitar";  // fallback
-        String dailyGoal  = "20 mins"; // fallback
-
-        android.database.Cursor cursor = myDb.getUserData(username);
-        if (cursor != null && cursor.moveToFirst()) {
-            int instrumentCol = cursor.getColumnIndex("INSTRUMENT");
-            int goalCol       = cursor.getColumnIndex("DAILY_GOAL");
-            if (instrumentCol != -1) {
-                String dbInstrument = cursor.getString(instrumentCol);
-                if (dbInstrument != null && !dbInstrument.isEmpty()) instrument = dbInstrument;
-            }
-            if (goalCol != -1) {
-                String dbGoal = cursor.getString(goalCol);
-                if (dbGoal != null && !dbGoal.isEmpty()) dailyGoal = dbGoal;
-            }
-            cursor.close();
-        }
-
-        // Sync SharedPreferences with DB values
-        prefs.edit()
-                .putString("instrument", instrument)
-                .putString("dailyGoal",  dailyGoal)
-                .apply();
-
-        // ── Populate views ──
+        // 3. Populate views with the dynamic data
         TextView tvUsername    = view.findViewById(R.id.tvUsername);
         TextView tvEmail       = view.findViewById(R.id.tvEmail);
         TextView tvInstrument  = view.findViewById(R.id.tvInstrumentStatus);
-        ImageView ivInstrumentLogo = view.findViewById(R.id.tvInstrumentStatusLogo);
-        TextView tvDailyGoal   = view.findViewById(R.id.tvDailyGoalCount);
-        TextView tvGoalMinutes = view.findViewById(R.id.tvGoalMinutes);
-        TextView tvChordsCount = view.findViewById(R.id.tvChordsCount);
 
-        tvUsername.setText(username);
-        tvEmail.setText(email);
+        tvUsername.setText(username.isEmpty() ? "Username" : username);
+        tvEmail.setText(email.isEmpty() ? "username@gmail.com" : email);
         tvInstrument.setText(instrument);
-        // --- FETCH THE CHORDS LEARNED ---
-        int totalChordsLearned = myDb.getChordsLearned(username);
-        tvChordsCount.setText(String.valueOf(totalChordsLearned));
-        tvDailyGoal.setText("Daily\nGoal");
-        tvGoalMinutes.setText(dailyGoal.equals("1 hr") ? "1 hour" : dailyGoal);
 
-        if (ivInstrumentLogo != null) {
-            switch (instrument) {
-                case "Piano":   ivInstrumentLogo.setImageResource(R.drawable.ic_piano);   break;
-                case "Ukulele": ivInstrumentLogo.setImageResource(R.drawable.ic_ukelele); break;
-                default:        ivInstrumentLogo.setImageResource(R.drawable.ic_guitar);  break;
-            }
-        }
-
-        // ── Button listeners (unchanged) ──
-        // Make the Settings button open the DetailsActivity
-        view.findViewById(R.id.btnSettings).setOnClickListener(v -> {
-            dismiss(); // Close the bottom sheet
-            Intent intent = new Intent(getActivity(), DetailsActivity.class);
-            startActivity(intent);
-        });
+        // ── Button listeners ──
+        view.findViewById(R.id.btnSettings).setOnClickListener(v ->
+                Toast.makeText(getContext(), "Settings coming soon!", Toast.LENGTH_SHORT).show());
 
         view.findViewById(R.id.btnFaqs).setOnClickListener(v ->
                 Toast.makeText(getContext(), "FAQs coming soon!", Toast.LENGTH_SHORT).show());
@@ -105,9 +64,28 @@ public class ProfileSheetFragment extends BottomSheetDialogFragment {
         view.findViewById(R.id.btnSupport).setOnClickListener(v ->
                 Toast.makeText(getContext(), "Support coming soon!", Toast.LENGTH_SHORT).show());
 
+        // ── REDIRECT TO PROGRESS REPORT ──
+        view.findViewById(R.id.cardProgressReport).setOnClickListener(v -> {
+            dismiss();
+            ProgressReportSheetFragment progressSheet = ProgressReportSheetFragment.newInstance();
+            progressSheet.show(getParentFragmentManager(), "progress_report");
+        });
+
+        // ── REDIRECT TO DAILY GOAL ──
+        view.findViewById(R.id.cardDailyGoal).setOnClickListener(v -> {
+            dismiss();
+            DailyGoalSheetFragment dailyGoalSheet = DailyGoalSheetFragment.newInstance();
+            dailyGoalSheet.show(getParentFragmentManager(), "daily_goal");
+        });
+
+        // ── Log Out (Cleaned up to use your SessionManager properly) ──
         view.findViewById(R.id.btnLogOut).setOnClickListener(v -> {
-            prefs.edit().clear().apply();
-            new SessionManager(requireContext()).clearSession();
+            // Clear the SessionManager session ("ChordLabSession" file)
+            sessionManager.clearSession();
+
+            // Also clear legacy file if you stored instrument data there
+            legacyPrefs.edit().clear().apply();
+
             dismiss();
             Intent intent = new Intent(getActivity(), LoginActivity.class);
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);

@@ -51,12 +51,19 @@ public class LoginActivity extends AppCompatActivity {
             }
 
             if (myDb.checkUser(user, pass)) {
-                // Save session
-                session.saveSession(user, "");
 
-                // Save username to UserSession for app-wide use
+                // ─── NEW: Fetch the actual email address from SQLite ───
+                String userEmail = myDb.getUserEmail(user);
+
+                // Save session with the retrieved email address
+                session.saveSession(user, userEmail);
+
+                // Save username and email to UserSession for app-wide use
                 SharedPreferences userPrefs = getSharedPreferences("UserSession", MODE_PRIVATE);
-                userPrefs.edit().putString("username", user).apply();
+                userPrefs.edit()
+                        .putString("username", user)
+                        .putString("email", userEmail) // 👈 This makes it visible to your Profile Sheet Fragment
+                        .apply();
 
                 // 2. Restore saved details to the current session (Optional but helpful)
                 SharedPreferences detailsPrefs = getSharedPreferences("DetailsPrefs", MODE_PRIVATE);
