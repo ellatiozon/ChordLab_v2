@@ -2,7 +2,7 @@ package com.example.chordlab;
 
 /**
  * ChordLab: Polyphonic Note and Chord Detection System
- * This file is a core component of the ChordLab backend architecture,
+ * Core component of the ChordLab backend architecture,
  * handling AI processing, multimodal sensor fusion, and/or state management.
  *
  * @author Mikhaella Mari D. Tiozon
@@ -25,36 +25,32 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.viewpager2.widget.ViewPager2;
 
 public class MainActivity extends AppCompatActivity {
 
-    private LinearLayout cardGuitar, cardPiano, cardUkelele;
+    private LinearLayout cardGuitar, cardPiano, cardSax;
     private LinearLayout selectedInstrumentCard = null;
 
     private String selectedInstrument = "Guitar";
 
     private DatabaseHelper myDb;
     private ProgressBar progressGuitar;
-
-    // Kept for database integration, though these can be checked for null
-    // depending on dashboard UI structural adjustments
     private TextView tvProgressLevel, tvProgressExp;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // FIX: Pointing ContentView to the dashboard layout containing your features
         setContentView(R.layout.activity_main);
 
         myDb = new DatabaseHelper(this);
 
-        // Binding to Dashboard views
+        // ── 1. INITIALIZE WIDGETS & USER WELCOME TEXT ──
         cardGuitar = findViewById(R.id.cardGuitar);
         cardPiano  = findViewById(R.id.cardPiano);
-        cardUkelele = findViewById(R.id.cardUkelele); // Mapped to R.id.cardSax from dashboard xml
-        progressGuitar  = findViewById(R.id.progressGuitar);
+        cardSax    = findViewById(R.id.cardUkelele); // Synchronized UI element ID
 
-        // Dynamic text tracking declarations safely initialized
+        progressGuitar  = findViewById(R.id.progressGuitar);
         tvProgressLevel = findViewById(R.id.tvProgressLevel);
         tvProgressExp   = findViewById(R.id.tvProgressExp);
 
@@ -65,26 +61,65 @@ public class MainActivity extends AppCompatActivity {
             tvWelcomeName.setText("Welcome, " + username + "!");
         }
 
+        // ── 2. INSTRUMENT SELECTION ACTION LISTENERS ──
         if (cardGuitar != null) cardGuitar.setOnClickListener(v -> selectInstrument(cardGuitar, "Guitar"));
-        if (cardPiano != null)  cardPiano.setOnClickListener(v  -> selectInstrument(cardPiano,  "Piano"));
-        if (cardUkelele != null) cardUkelele.setOnClickListener(v -> selectInstrument(cardUkelele, "Ukulele"));
+        if (cardPiano != null)  cardPiano.setOnClickListener(v -> selectInstrument(cardPiano, "Piano"));
+        if (cardSax != null)    cardSax.setOnClickListener(v -> selectInstrument(cardSax, "Ukulele"));
 
-        // Setup individual interactive clicks from components handled by your adapter/cards
-        View profileBar = findViewById(R.id.profileBar);
-        View profileIconContainer = findViewById(R.id.profileIconContainer);
+        // ── 3. BOTTOM PROFILE NAVIGATION SHEET TRIGGER ──
         View.OnClickListener openProfile = v -> {
             ProfileSheetFragment sheet = ProfileSheetFragment.newInstance();
             sheet.show(getSupportFragmentManager(), "profile");
         };
 
+        View profileBar = findViewById(R.id.profileBar);
+        View profileIconContainer = findViewById(R.id.profileIconContainer);
         if (profileBar != null) profileBar.setOnClickListener(openProfile);
         if (profileIconContainer != null) profileIconContainer.setOnClickListener(openProfile);
 
-        // Fallback profile action for standalone buttons
-        View ivProfileBtn = findViewById(R.id.ivProfileBtn);
-        if (ivProfileBtn != null) ivProfileBtn.setOnClickListener(openProfile);
+        // ── 4. VIEW PAGER CAROUSEL ADAPTER (PRACTICE PAGES 1 & 2) ──
+        ViewPager2 viewPager = findViewById(R.id.viewPagerPracticeModes);
+        com.google.android.material.tabs.TabLayout tabIndicator = findViewById(R.id.tabIndicator);
 
-        // Set up custom layout elevation shadows
+        PracticeModesAdapter adapter = new PracticeModesAdapter((cardId, cardView) -> {
+            if (cardId == R.id.cardPracticeMode) {
+                flashAndNavigate((LinearLayout) cardView, () -> startSession("PRACTICE"));
+            } else if (cardId == R.id.cardFlashCards) {
+                flashAndNavigate((LinearLayout) cardView, () -> startSession("FLASHCARDS"));
+            } else if (cardId == R.id.cardMetronome) {
+                flashAndNavigate((LinearLayout) cardView, () -> {
+                    startActivity(new Intent(this, MetronomeActivity.class));
+                });
+            } else if (cardId == R.id.cardSongPractice) {
+                flashAndNavigate((LinearLayout) cardView, () -> {
+                    startActivity(new Intent(this, SongListActivity.class));
+                });
+            } else if (cardId == R.id.cardChordLibrary) {
+                flashAndNavigate((LinearLayout) cardView, () -> {
+                    SharedPreferences currentPrefs = getSharedPreferences("UserSession", MODE_PRIVATE);
+                    String activeInstrument = currentPrefs.getString("instrument", "Guitar");
+
+                    Intent intent = new Intent(this, ChordLibraryActivity.class);
+                    intent.putExtra("selected_instrument", activeInstrument);
+                    startActivity(intent);
+                });
+            } else if (cardId == R.id.cardVideoTranslator) {
+                flashAndNavigate((LinearLayout) cardView, () -> {
+                    startActivity(new Intent(this, VideoTranslatorActivity.class));
+                });
+            }
+        });
+
+        if (viewPager != null) {
+            viewPager.setAdapter(adapter);
+            if (tabIndicator != null) {
+                new com.google.android.material.tabs.TabLayoutMediator(tabIndicator, viewPager,
+                        (tab, position) -> { /* Custom Dot indicator configuration */ }
+                ).attach();
+            }
+        }
+
+        // ── 5. ENGINE DECORATOR LAYER SHADOWS ──
         setupCustomShadows();
     }
 
@@ -94,6 +129,8 @@ public class MainActivity extends AppCompatActivity {
         applyInstrumentHighlight();
         applyProgressDisplay();
     }
+
+    // ── INTERACTIVE ROUTER ENGINES ──────────────────────────────────────────
 
     private void startSession(String mode) {
         if (selectedInstrument.isEmpty()) {
@@ -143,7 +180,7 @@ public class MainActivity extends AppCompatActivity {
 
         if (cardGuitar != null) cardGuitar.setBackgroundResource(R.drawable.bg_instrument_normal);
         if (cardPiano != null)  cardPiano.setBackgroundResource(R.drawable.bg_instrument_normal);
-        if (cardUkelele != null) cardUkelele.setBackgroundResource(R.drawable.bg_instrument_normal);
+        if (cardSax != null)    cardSax.setBackgroundResource(R.drawable.bg_instrument_normal);
         selectedInstrumentCard = null;
 
         String savedInstrument = "Guitar";
@@ -170,9 +207,9 @@ public class MainActivity extends AppCompatActivity {
                 }
                 break;
             case "Ukulele":
-                if (cardUkelele != null) {
-                    cardUkelele.setBackgroundResource(R.drawable.bg_instrument_selected);
-                    selectedInstrumentCard = cardUkelele;
+                if (cardSax != null) {
+                    cardSax.setBackgroundResource(R.drawable.bg_instrument_selected);
+                    selectedInstrumentCard = cardSax;
                 }
                 break;
             default:
