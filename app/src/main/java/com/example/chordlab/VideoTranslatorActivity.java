@@ -84,7 +84,7 @@ public class VideoTranslatorActivity extends AppCompatActivity {
     private void setupListeners() {
         // Back to Dashboard
         btnBackToDashboard.setOnClickListener(v -> {
-            startActivity(new Intent(this, DashboardActivity.class));
+            startActivity(new Intent(this, MainActivity.class));
             finish();
         });
 
