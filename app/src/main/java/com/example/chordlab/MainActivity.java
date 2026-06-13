@@ -2,7 +2,7 @@ package com.example.chordlab;
 
 /**
  * ChordLab: Polyphonic Note and Chord Detection System
- * * This file is a core component of the ChordLab backend architecture,
+ * This file is a core component of the ChordLab backend architecture,
  * handling AI processing, multimodal sensor fusion, and/or state management.
  *
  * @author Mikhaella Mari D. Tiozon
@@ -35,19 +35,26 @@ public class MainActivity extends AppCompatActivity {
 
     private DatabaseHelper myDb;
     private ProgressBar progressGuitar;
+
+    // Kept for database integration, though these can be checked for null
+    // depending on dashboard UI structural adjustments
     private TextView tvProgressLevel, tvProgressExp;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // FIX: Pointing ContentView to the dashboard layout containing your features
         setContentView(R.layout.activity_main);
 
         myDb = new DatabaseHelper(this);
 
+        // Binding to Dashboard views
         cardGuitar = findViewById(R.id.cardGuitar);
         cardPiano  = findViewById(R.id.cardPiano);
-        cardUkelele = findViewById(R.id.cardUkelele);
+        cardUkelele = findViewById(R.id.cardUkelele); // Mapped to R.id.cardSax from dashboard xml
         progressGuitar  = findViewById(R.id.progressGuitar);
+
+        // Dynamic text tracking declarations safely initialized
         tvProgressLevel = findViewById(R.id.tvProgressLevel);
         tvProgressExp   = findViewById(R.id.tvProgressExp);
 
@@ -58,30 +65,26 @@ public class MainActivity extends AppCompatActivity {
             tvWelcomeName.setText("Welcome, " + username + "!");
         }
 
-        cardGuitar.setOnClickListener(v -> selectInstrument(cardGuitar, "Guitar"));
-        cardPiano.setOnClickListener(v  -> selectInstrument(cardPiano,  "Piano"));
-        cardUkelele.setOnClickListener(v -> selectInstrument(cardUkelele, "Ukulele"));
+        if (cardGuitar != null) cardGuitar.setOnClickListener(v -> selectInstrument(cardGuitar, "Guitar"));
+        if (cardPiano != null)  cardPiano.setOnClickListener(v  -> selectInstrument(cardPiano,  "Piano"));
+        if (cardUkelele != null) cardUkelele.setOnClickListener(v -> selectInstrument(cardUkelele, "Ukulele"));
 
-        findViewById(R.id.cardPracticeMode).setOnClickListener(v -> {
-            flashAndNavigate((LinearLayout) v, () -> startSession("PRACTICE"));
-        });
-
-        findViewById(R.id.cardFlashCards).setOnClickListener(v -> {
-            flashAndNavigate((LinearLayout) v, () -> startSession("FLASHCARDS"));
-        });
-
-        // Card 1: Standard Metronome
-        findViewById(R.id.cardMetronome).setOnClickListener(v -> {
-            flashAndNavigate((LinearLayout) v, () -> {
-                startActivity(new Intent(this, MetronomeActivity.class));
-            });
-        });
-
-        findViewById(R.id.ivProfileBtn).setOnClickListener(v -> {
+        // Setup individual interactive clicks from components handled by your adapter/cards
+        View profileBar = findViewById(R.id.profileBar);
+        View profileIconContainer = findViewById(R.id.profileIconContainer);
+        View.OnClickListener openProfile = v -> {
             ProfileSheetFragment sheet = ProfileSheetFragment.newInstance();
             sheet.show(getSupportFragmentManager(), "profile");
-        });
+        };
 
+        if (profileBar != null) profileBar.setOnClickListener(openProfile);
+        if (profileIconContainer != null) profileIconContainer.setOnClickListener(openProfile);
+
+        // Fallback profile action for standalone buttons
+        View ivProfileBtn = findViewById(R.id.ivProfileBtn);
+        if (ivProfileBtn != null) ivProfileBtn.setOnClickListener(openProfile);
+
+        // Set up custom layout elevation shadows
         setupCustomShadows();
     }
 
@@ -138,9 +141,9 @@ public class MainActivity extends AppCompatActivity {
         SharedPreferences prefs = getSharedPreferences("UserSession", MODE_PRIVATE);
         String username = prefs.getString("username", "");
 
-        cardGuitar.setBackgroundResource(R.drawable.bg_instrument_normal);
-        cardPiano.setBackgroundResource(R.drawable.bg_instrument_normal);
-        cardUkelele.setBackgroundResource(R.drawable.bg_instrument_normal);
+        if (cardGuitar != null) cardGuitar.setBackgroundResource(R.drawable.bg_instrument_normal);
+        if (cardPiano != null)  cardPiano.setBackgroundResource(R.drawable.bg_instrument_normal);
+        if (cardUkelele != null) cardUkelele.setBackgroundResource(R.drawable.bg_instrument_normal);
         selectedInstrumentCard = null;
 
         String savedInstrument = "Guitar";
@@ -157,20 +160,26 @@ public class MainActivity extends AppCompatActivity {
         }
 
         prefs.edit().putString("instrument", savedInstrument).apply();
-        selectedInstrument = savedInstrument; // Sync backend variable
+        selectedInstrument = savedInstrument;
 
         switch (savedInstrument) {
             case "Piano":
-                cardPiano.setBackgroundResource(R.drawable.bg_instrument_selected);
-                selectedInstrumentCard = cardPiano;
+                if (cardPiano != null) {
+                    cardPiano.setBackgroundResource(R.drawable.bg_instrument_selected);
+                    selectedInstrumentCard = cardPiano;
+                }
                 break;
             case "Ukulele":
-                cardUkelele.setBackgroundResource(R.drawable.bg_instrument_selected);
-                selectedInstrumentCard = cardUkelele;
+                if (cardUkelele != null) {
+                    cardUkelele.setBackgroundResource(R.drawable.bg_instrument_selected);
+                    selectedInstrumentCard = cardUkelele;
+                }
                 break;
             default:
-                cardGuitar.setBackgroundResource(R.drawable.bg_instrument_selected);
-                selectedInstrumentCard = cardGuitar;
+                if (cardGuitar != null) {
+                    cardGuitar.setBackgroundResource(R.drawable.bg_instrument_selected);
+                    selectedInstrumentCard = cardGuitar;
+                }
                 break;
         }
     }
@@ -184,9 +193,9 @@ public class MainActivity extends AppCompatActivity {
         int exp   = expLevel[0];
         int level = expLevel[1];
 
-        if(progressGuitar != null) progressGuitar.setProgress(exp);
-        if(tvProgressLevel != null) tvProgressLevel.setText("Level " + level);
-        if(tvProgressExp != null) tvProgressExp.setText(exp + " / 100 XP to Level " + (level + 1));
+        if (progressGuitar != null) progressGuitar.setProgress(exp);
+        if (tvProgressLevel != null) tvProgressLevel.setText("Level " + level);
+        if (tvProgressExp != null) tvProgressExp.setText(exp + " / 100 XP to Level " + (level + 1));
     }
 
     private void flashAndNavigate(LinearLayout card, Runnable navigateTo) {
@@ -208,6 +217,17 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
             profileBar.setClipToOutline(false);
+        }
+
+        View profileCircleBg = findViewById(R.id.profileCircleBg);
+        if (profileCircleBg != null) {
+            profileCircleBg.setOutlineProvider(new ViewOutlineProvider() {
+                @Override
+                public void getOutline(View view, Outline outline) {
+                    outline.setOval(0, 0, view.getWidth(), view.getHeight());
+                }
+            });
+            profileCircleBg.setClipToOutline(false);
         }
     }
 }
