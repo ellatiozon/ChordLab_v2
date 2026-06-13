@@ -86,7 +86,7 @@ public class ChordLibraryActivity extends AppCompatActivity {
 
     private void setupStaticListeners() {
         btnBackToDashboard.setOnClickListener(v -> {
-            Intent intent = new Intent(ChordLibraryActivity.this, DashboardActivity.class);
+            Intent intent = new Intent(ChordLibraryActivity.this, MainActivity.class);
             startActivity(intent);
             finish();
         });
