@@ -226,13 +226,26 @@ public class MainActivity extends AppCompatActivity {
         String username = prefs.getString("username", "");
         if (username.isEmpty()) return;
 
+        // Fetching progress values from the database
         int[] expLevel = myDb.getExpAndLevel(username);
         int exp   = expLevel[0];
         int level = expLevel[1];
 
-        if (progressGuitar != null) progressGuitar.setProgress(exp);
-        if (tvProgressLevel != null) tvProgressLevel.setText("Level " + level);
-        if (tvProgressExp != null) tvProgressExp.setText(exp + " / 100 XP to Level " + (level + 1));
+        // Fetching the converted text Tier mapping string (e.g. "Beginner I")
+        String tierStatus = myDb.getUserTierStatus(username);
+
+        if (progressGuitar != null) {
+            progressGuitar.setProgress(exp);
+        }
+
+        // Dynamically updates "Level 1" to look exactly like "Level 1 - Beginner I"
+        if (tvProgressLevel != null) {
+            tvProgressLevel.setText("Level " + level + " - " + tierStatus);
+        }
+
+        if (tvProgressExp != null) {
+            tvProgressExp.setText(exp + " / 100 XP to Level " + (level + 1));
+        }
     }
 
     private void flashAndNavigate(LinearLayout card, Runnable navigateTo) {

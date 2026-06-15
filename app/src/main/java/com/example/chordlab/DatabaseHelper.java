@@ -148,6 +148,44 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return new int[]{exp, level, didLevelUp};
     }
 
+    public String getUserTierStatus(String username) {
+        int[] expAndLevel = getExpAndLevel(username);
+        int level = expAndLevel[1]; // Get the level from index 1
+
+        if (level >= 1 && level <= 10) {
+            return "Beginner I";
+        } else if (level >= 11 && level <= 20) {
+            return "Beginner II";
+        } else if (level >= 21 && level <= 30) {
+            return "Beginner III";
+        } else if (level >= 31 && level <= 40) {
+            return "Intermediate I";
+        } else if (level >= 41 && level <= 50) {
+            return "Intermediate II";
+        } else if (level >= 51 && level <= 60) {
+            return "Intermediate III";
+        } else if (level >= 61 && level <= 70) {
+            return "Advanced I";
+        } else if (level >= 71 && level <= 80) {
+            return "Advanced II";
+        } else if (level >= 81) {
+            return "Advanced III";
+        } {
+            return "Beginner I"; // Fallback just in case level is 0 or uninitialized
+        }
+    }
+
+    public String getFullLevelAndTierString(String username) {
+        int[] expAndLevel = getExpAndLevel(username);
+        int level = expAndLevel[1];
+
+        // Call your existing tier logic method
+        String tier = getUserTierStatus(username);
+
+        // Outputs: "Level X - Tier Name"
+        return "Level " + level + " - " + tier;
+    }
+
     // ============================================
     // --- CHORDS LEARNED TRACKER METHODS ---
     // ============================================

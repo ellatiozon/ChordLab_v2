@@ -33,26 +33,31 @@ public class ProfileSheetFragment extends BottomSheetDialogFragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        // 1. Initialize your SessionManager instead of raw SharedPreferences
+        // 1. Initialize your SessionManager and DatabaseHelper
         SessionManager sessionManager = new SessionManager(requireContext());
+        DatabaseHelper dbHelper = new DatabaseHelper(requireContext());
 
-        // 2. Pull the values dynamically using your SessionManager methods
-        String username   = sessionManager.getUsername();
-        String email      = sessionManager.getEmail();
+        // 2. Pull the values dynamically using your SessionManager and DatabaseHelper
+        String username = sessionManager.getUsername();
+        String email    = sessionManager.getEmail();
 
-        // Note: If instrument and dailyGoal are stored in a different file, keep this block.
+        // Fetch the custom level tier string based on the logged-in username
+        String tierStatus = dbHelper.getUserTierStatus(username);
+
+        // Note: If dailyGoal or other legacy data is still stored in a different file, keep this block.
         SharedPreferences legacyPrefs = requireActivity()
                 .getSharedPreferences("UserSession", android.content.Context.MODE_PRIVATE);
-        String instrument = legacyPrefs.getString("instrument", "Guitar");
 
         // 3. Populate views with the dynamic data
         TextView tvUsername    = view.findViewById(R.id.tvUsername);
         TextView tvEmail       = view.findViewById(R.id.tvEmail);
-        TextView tvInstrument  = view.findViewById(R.id.tvInstrumentStatus);
+        TextView tvTierStatus  = view.findViewById(R.id.tvTierStatus);
 
         tvUsername.setText(username.isEmpty() ? "Username" : username);
         tvEmail.setText(email.isEmpty() ? "username@gmail.com" : email);
-        tvInstrument.setText(instrument);
+
+        // Dynamically displays "Beginner I", "Intermediate III", etc.
+        tvTierStatus.setText(tierStatus);
 
         // ── Button listeners ──
         view.findViewById(R.id.btnSettings).setOnClickListener(v ->
@@ -83,7 +88,7 @@ public class ProfileSheetFragment extends BottomSheetDialogFragment {
             // Clear the SessionManager session ("ChordLabSession" file)
             sessionManager.clearSession();
 
-            // Also clear legacy file if you stored instrument data there
+            // Also clear legacy file if you stored data there
             legacyPrefs.edit().clear().apply();
 
             dismiss();

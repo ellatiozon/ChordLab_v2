@@ -130,7 +130,7 @@
 
         <!-- Instrument -->
         <LinearLayout
-            android:id="@+id/cardCurrentInstrument"
+            android:id="@+id/cardCurrentTier"
             android:layout_width="0dp"
             android:layout_height="90dp"
             android:layout_weight="1"
@@ -146,11 +146,11 @@
                 app:tint="#FFFFFF" />
 
             <TextView
-                android:id="@+id/tvInstrumentStatus"
+                android:id="@+id/tvTierStatus"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
-                android:text="Instrument"
+                android:text="Biginner I"
                 android:textColor="#FFFFFF"
                 android:textStyle="bold"
                 android:textSize="16sp" />
