@@ -7,7 +7,6 @@
     android:orientation="vertical"
     android:paddingBottom="32dp">
 
-    <!-- Drag handle -->
     <View
         android:layout_width="40dp"
         android:layout_height="4dp"
@@ -36,7 +35,6 @@
 
     </FrameLayout>
 
-    <!-- Current Instrument Progress Title -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -47,7 +45,6 @@
         android:textSize="16sp"
         android:textStyle="bold" />
 
-    <!-- ── Current Instrument Progress Card ── -->
     <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -64,34 +61,33 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- ── Total Practice Minutes ── -->
             <RelativeLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
 
                 <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Total Practice Minutes"
-            android:textColor="@color/accent_pink"
-            android:textSize="16sp"
-            android:textStyle="bold" />
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Total Practice Minutes"
+                    android:textColor="@color/accent_pink"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentEnd="true"
-                android:text="67 mins"
-                android:textColor="@color/accent_pink"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-        </RelativeLayout>
+                <TextView
+                    android:id="@+id/tvTotalPracticeMinutes"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:text="0 mins"
+                    android:textColor="@color/accent_pink"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+            </RelativeLayout>
 
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="16dp" />
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="16dp" />
 
-            <!-- ── Chords learned ── -->
             <RelativeLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
@@ -105,10 +101,11 @@
                     android:textStyle="bold" />
 
                 <TextView
+                    android:id="@+id/tvChordsLearnedPercent"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_alignParentEnd="true"
-                    android:text="67%"
+                    android:text="0%"
                     android:textColor="@color/accent_pink"
                     android:textSize="14sp"
                     android:textStyle="bold" />
@@ -121,12 +118,9 @@
                 android:layout_marginTop="10dp"
                 android:layout_marginBottom="15dp"
                 android:max="100"
-                android:progress="67"
+                android:progress="0"
                 android:progressDrawable="@drawable/progress_bar_pink" />
 
-
-
-            <!-- ── Instruments Explored ── -->
             <RelativeLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
@@ -140,10 +134,11 @@
                     android:textStyle="bold" />
 
                 <TextView
+                    android:id="@+id/tvInstrumentsExploredPercent"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_alignParentEnd="true"
-                    android:text="67%"
+                    android:text="0%"
                     android:textColor="@color/accent_pink"
                     android:textSize="14sp"
                     android:textStyle="bold" />
@@ -157,10 +152,9 @@
                 android:layout_marginTop="10dp"
                 android:layout_marginBottom="15dp"
                 android:max="100"
-                android:progress="67"
+                android:progress="0"
                 android:progressDrawable="@drawable/progress_bar_pink" />
 
-            <!-- ── Guitar Progress ── -->
             <RelativeLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
@@ -174,10 +168,11 @@
                     android:textStyle="bold" />
 
                 <TextView
+                    android:id="@+id/tvGuitarProgressPercent"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_alignParentEnd="true"
-                    android:text="67%"
+                    android:text="0%"
                     android:textColor="@color/accent_pink"
                     android:textSize="14sp"
                     android:textStyle="bold" />
@@ -190,10 +185,9 @@
                 android:layout_marginTop="10dp"
                 android:layout_marginBottom="15dp"
                 android:max="100"
-                android:progress="67"
+                android:progress="0"
                 android:progressDrawable="@drawable/progress_bar_pink" />
 
-            <!-- ── Ukulele Progress── -->
             <RelativeLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
@@ -207,10 +201,11 @@
                     android:textStyle="bold" />
 
                 <TextView
+                    android:id="@+id/tvUkuleleProgressPercent"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_alignParentEnd="true"
-                    android:text="67%"
+                    android:text="0%"
                     android:textColor="@color/accent_pink"
                     android:textSize="14sp"
                     android:textStyle="bold" />
@@ -223,10 +218,9 @@
                 android:layout_marginTop="10dp"
                 android:layout_marginBottom="15dp"
                 android:max="100"
-                android:progress="67"
+                android:progress="0"
                 android:progressDrawable="@drawable/progress_bar_pink" />
 
-            <!-- ── Piano Progress── -->
             <RelativeLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
@@ -240,10 +234,11 @@
                     android:textStyle="bold" />
 
                 <TextView
+                    android:id="@+id/tvPianoProgressPercent"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_alignParentEnd="true"
-                    android:text="67%"
+                    android:text="0%"
                     android:textColor="@color/accent_pink"
                     android:textSize="14sp"
                     android:textStyle="bold" />
@@ -256,11 +251,8 @@
                 android:layout_marginTop="10dp"
                 android:layout_marginBottom="15dp"
                 android:max="100"
-                android:progress="67"
+                android:progress="0"
                 android:progressDrawable="@drawable/progress_bar_pink" />
-
-
-
 
         </LinearLayout>
     </androidx.cardview.widget.CardView>

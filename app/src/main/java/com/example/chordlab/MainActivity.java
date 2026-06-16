@@ -25,6 +25,7 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.cardview.widget.CardView;
 import androidx.viewpager2.widget.ViewPager2;
 
 import java.text.SimpleDateFormat;
@@ -41,6 +42,7 @@ public class MainActivity extends AppCompatActivity {
     private DatabaseHelper myDb;
     private ProgressBar progressGuitar;
     private TextView tvProgressLevel, tvProgressExp;
+    private CardView cardPracticeMetrics;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,6 +59,7 @@ public class MainActivity extends AppCompatActivity {
         progressGuitar  = findViewById(R.id.progressGuitar);
         tvProgressLevel = findViewById(R.id.tvProgressLevel);
         tvProgressExp   = findViewById(R.id.tvProgressExp);
+        cardPracticeMetrics = findViewById(R.id.cardPracticeMetrics);
 
         TextView tvWelcomeName = findViewById(R.id.tvWelcomeName);
         SharedPreferences prefs = getSharedPreferences("UserSession", MODE_PRIVATE);
@@ -75,6 +78,14 @@ public class MainActivity extends AppCompatActivity {
         if (cardGuitar != null) cardGuitar.setOnClickListener(v -> selectInstrument(cardGuitar, "Guitar"));
         if (cardPiano != null)  cardPiano.setOnClickListener(v -> selectInstrument(cardPiano, "Piano"));
         if (cardSax != null)    cardSax.setOnClickListener(v -> selectInstrument(cardSax, "Ukulele"));
+
+        // ── PRACTICE METRICS ACTION LISTENER ──
+        if (cardPracticeMetrics != null) {
+            cardPracticeMetrics.setOnClickListener(v -> {
+                DailyGoalSheetFragment dailyGoalSheet = new DailyGoalSheetFragment();
+                dailyGoalSheet.show(getSupportFragmentManager(), "daily_goal_sheet");
+            });
+        }
 
         // ── 3. BOTTOM PROFILE NAVIGATION SHEET TRIGGER ──
         View.OnClickListener openProfile = v -> {

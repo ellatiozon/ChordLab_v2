@@ -91,6 +91,14 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
 
         setupUI();
 
+        // ── PERSISTENT STAT: MARK INSTRUMENT EXPLORED ──
+        SharedPreferences prefs = getSharedPreferences("UserSession", MODE_PRIVATE);
+        String username = prefs.getString("username", "");
+        if (!username.isEmpty()) {
+            DatabaseHelper db = new DatabaseHelper(this);
+            db.markInstrumentExplored(username, "Ukulele");
+        }
+
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
             startCamera();
         } else {
@@ -126,6 +134,9 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
                 if (!username.isEmpty()) {
                     String todayKey = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
                     DatabaseHelper db = new DatabaseHelper(this);
+
+                    // Update total accumulated practice minutes column
+                    db.addPracticeMinutes(username, totalSessionMins);
 
                     // Increment overall practicing bucket
                     db.trackTaskProgress(username, todayKey, "TOTAL_TIME", totalSessionMins, null);
@@ -374,6 +385,9 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
             DatabaseHelper db = new DatabaseHelper(this);
             db.addExp(username, 1);
             db.incrementChordsLearned(username);
+
+            // ── NEW PERSISTENT SPECIFIC STAT TRACKER ──
+            db.incrementSpecificInstrumentStat(username, db.getUkuleleCol());
 
             // ── TASK UPDATING IMPLEMENTATION ──
             String target = ukuleleChords[currentChordIndex];

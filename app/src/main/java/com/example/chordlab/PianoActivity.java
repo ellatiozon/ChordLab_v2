@@ -107,6 +107,14 @@ public class PianoActivity extends AppCompatActivity {
             if (status == TextToSpeech.SUCCESS) tts.setLanguage(Locale.US);
         });
 
+        // ── PERSISTENT STAT: MARK INSTRUMENT EXPLORED ──
+        SharedPreferences prefs = getSharedPreferences("UserSession", MODE_PRIVATE);
+        String username = prefs.getString("username", "");
+        if (!username.isEmpty()) {
+            DatabaseHelper db = new DatabaseHelper(this);
+            db.markInstrumentExplored(username, "Piano");
+        }
+
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
             startAudioThread();
         } else {
@@ -143,6 +151,9 @@ public class PianoActivity extends AppCompatActivity {
                 if (!username.isEmpty()) {
                     String todayKey = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
                     DatabaseHelper db = new DatabaseHelper(this);
+
+                    // Update persistent lifetime analytics tracker
+                    db.addPracticeMinutes(username, totalSessionMins);
 
                     // Track overall instrument session minutes
                     db.trackTaskProgress(username, todayKey, "TOTAL_TIME", totalSessionMins, null);
@@ -471,6 +482,9 @@ public class PianoActivity extends AppCompatActivity {
             String todayKey = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
 
             if (isChordMode != null && isChordMode) {
+                // Increment specific fine-grained instrument statistical values
+                db.incrementSpecificInstrumentStat(username, db.getPianoChordsCol());
+
                 // Normalizing piano target naming convention (e.g. "C major" -> "C Major") to safely match database records
                 String standardChordName = currentTarget;
                 if (currentTarget.toLowerCase().contains("major")) {
@@ -484,6 +498,9 @@ public class PianoActivity extends AppCompatActivity {
                 // 2. Clear target specific challenge objective if tracked
                 db.trackTaskProgress(username, todayKey, "SPECIFIC_CHORD", 1, standardChordName);
             } else if (isChordMode != null) {
+                // Increment structural pitch single stats instead
+                db.incrementSpecificInstrumentStat(username, db.getPianoNotesCol());
+
                 // 3. Clear target note goals
                 db.trackTaskProgress(username, todayKey, "SPECIFIC_NOTE", 1, currentTarget);
             }
