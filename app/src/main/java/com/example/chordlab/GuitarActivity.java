@@ -91,6 +91,14 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
 
         setupUI();
 
+        // ── PERSISTENT STAT: MARK INSTRUMENT EXPLORED ──
+        SharedPreferences prefs = getSharedPreferences("UserSession", MODE_PRIVATE);
+        String username = prefs.getString("username", "");
+        if (!username.isEmpty()) {
+            DatabaseHelper db = new DatabaseHelper(this);
+            db.markInstrumentExplored(username, "Guitar");
+        }
+
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
             startCamera();
         } else {
@@ -126,6 +134,9 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
                 if (!username.isEmpty()) {
                     String todayKey = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
                     DatabaseHelper db = new DatabaseHelper(this);
+
+                    // Update total accumulated practice minutes column
+                    db.addPracticeMinutes(username, totalSessionMins);
 
                     // Increment overall practicing bucket
                     db.trackTaskProgress(username, todayKey, "TOTAL_TIME", totalSessionMins, null);
@@ -369,7 +380,10 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
             db.addExp(username, 1);
             db.incrementChordsLearned(username);
 
-            // ── NEW TASK UPDATING IMPLEMENTATION ──
+            // ── NEW PERSISTENT SPECIFIC STAT TRACKER ──
+            db.incrementSpecificInstrumentStat(username, db.getGuitarCol());
+
+            // ── TASK UPDATING IMPLEMENTATION ──
             String target = guitarChords[currentChordIndex];
             String todayKey = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
 

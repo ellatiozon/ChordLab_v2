@@ -26,9 +26,21 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String TASKS_COL_CURRENT = "CURRENT_VALUE";
     private static final String TASKS_COL_COMPLETED = "IS_COMPLETED"; // 0 = false, 1 = true
 
-    // Bump version from 3 to 4 to trigger onUpgrade for the tasks table
+    // ─── NEW INDIVIDUAL PROGRESSION TRACKING COLUMNS ───
+    private static final String COL_TOTAL_MINUTES = "TOTAL_PRACTICE_MINUTES";
+    private static final String COL_GUITAR_CHORDS = "GUITAR_CHORDS_LEARNED";
+    private static final String COL_UKULELE_CHORDS = "UKULELE_CHORDS_LEARNED";
+    private static final String COL_PIANO_CHORDS = "PIANO_CHORDS_LEARNED";
+    private static final String COL_PIANO_NOTES = "PIANO_NOTES_LEARNED";
+
+    // Flags to check which activities were triggered (Saved as INTEGER: 0 = false, 1 = true)
+    private static final String COL_EXPLORED_GUITAR = "EXPLORED_GUITAR";
+    private static final String COL_EXPLORED_UKULELE = "EXPLORED_UKULELE";
+    private static final String COL_EXPLORED_PIANO = "EXPLORED_PIANO";
+
+    // Bump version from 4 to 5 to handle individual progress columns upgrade smoothly
     public DatabaseHelper(Context context) {
-        super(context, DATABASE_NAME, null, 4);
+        super(context, DATABASE_NAME, null, 5);
     }
 
     @Override
@@ -42,7 +54,15 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 "DAILY_GOAL TEXT, " +
                 "EXP INTEGER DEFAULT 0, " +
                 "LEVEL INTEGER DEFAULT 1, " +
-                "CHORDS_LEARNED INTEGER DEFAULT 0)");
+                "CHORDS_LEARNED INTEGER DEFAULT 0, " +
+                COL_TOTAL_MINUTES + " INTEGER DEFAULT 0, " +
+                COL_GUITAR_CHORDS + " INTEGER DEFAULT 0, " +
+                COL_UKULELE_CHORDS + " INTEGER DEFAULT 0, " +
+                COL_PIANO_CHORDS + " INTEGER DEFAULT 0, " +
+                COL_PIANO_NOTES + " INTEGER DEFAULT 0, " +
+                COL_EXPLORED_GUITAR + " INTEGER DEFAULT 0, " +
+                COL_EXPLORED_UKULELE + " INTEGER DEFAULT 0, " +
+                COL_EXPLORED_PIANO + " INTEGER DEFAULT 0)");
 
         // Create tasks table for new database installations
         createTasksTable(db);
@@ -59,6 +79,16 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         }
         if (oldVersion < 4) {
             createTasksTable(db);
+        }
+        if (oldVersion < 5) {
+            db.execSQL("ALTER TABLE " + TABLE_NAME + " ADD COLUMN " + COL_TOTAL_MINUTES + " INTEGER DEFAULT 0");
+            db.execSQL("ALTER TABLE " + TABLE_NAME + " ADD COLUMN " + COL_GUITAR_CHORDS + " INTEGER DEFAULT 0");
+            db.execSQL("ALTER TABLE " + TABLE_NAME + " ADD COLUMN " + COL_UKULELE_CHORDS + " INTEGER DEFAULT 0");
+            db.execSQL("ALTER TABLE " + TABLE_NAME + " ADD COLUMN " + COL_PIANO_CHORDS + " INTEGER DEFAULT 0");
+            db.execSQL("ALTER TABLE " + TABLE_NAME + " ADD COLUMN " + COL_PIANO_NOTES + " INTEGER DEFAULT 0");
+            db.execSQL("ALTER TABLE " + TABLE_NAME + " ADD COLUMN " + COL_EXPLORED_GUITAR + " INTEGER DEFAULT 0");
+            db.execSQL("ALTER TABLE " + TABLE_NAME + " ADD COLUMN " + COL_EXPLORED_UKULELE + " INTEGER DEFAULT 0");
+            db.execSQL("ALTER TABLE " + TABLE_NAME + " ADD COLUMN " + COL_EXPLORED_PIANO + " INTEGER DEFAULT 0");
         }
     }
 
@@ -212,8 +242,72 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.update(TABLE_NAME, cv, "USERNAME=?", new String[]{username});
     }
 
+    // ============================================================
+    // ─── NEW METHODS: INSTRUMENT SPECIFIC PROGRESSION TRACKING ───
+    // ============================================================
+
+    public void addPracticeMinutes(String username, int minutes) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        db.execSQL("UPDATE " + TABLE_NAME + " SET " + COL_TOTAL_MINUTES + " = " + COL_TOTAL_MINUTES + " + ? WHERE USERNAME = ?", new Object[]{minutes, username});
+    }
+
+    public void markInstrumentExplored(String username, String instrumentType) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues cv = new ContentValues();
+        if (instrumentType.equalsIgnoreCase("Guitar")) {
+            cv.put(COL_EXPLORED_GUITAR, 1);
+        } else if (instrumentType.equalsIgnoreCase("Ukulele")) {
+            cv.put(COL_EXPLORED_UKULELE, 1);
+        } else if (instrumentType.equalsIgnoreCase("Piano")) {
+            cv.put(COL_EXPLORED_PIANO, 1);
+        }
+        db.update(TABLE_NAME, cv, "USERNAME=?", new String[]{username});
+    }
+
+    public void incrementSpecificInstrumentStat(String username, String columnName) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        db.execSQL("UPDATE " + TABLE_NAME + " SET " + columnName + " = " + columnName + " + 1 WHERE USERNAME = ?", new Object[]{username});
+    }
+
+    // Safe Column Accessors
+    public String getGuitarCol() { return COL_GUITAR_CHORDS; }
+    public String getUkuleleCol() { return COL_UKULELE_CHORDS; }
+    public String getPianoChordsCol() { return COL_PIANO_CHORDS; }
+    public String getPianoNotesCol() { return COL_PIANO_NOTES; }
+
+    public ProgressData getUserProgress(String username) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        ProgressData data = new ProgressData();
+        Cursor cursor = db.rawQuery("SELECT * FROM " + TABLE_NAME + " WHERE USERNAME=?", new String[]{username});
+
+        if (cursor != null && cursor.moveToFirst()) {
+            data.totalPracticeMinutes = cursor.getInt(cursor.getColumnIndexOrThrow(COL_TOTAL_MINUTES));
+            data.guitarChords = cursor.getInt(cursor.getColumnIndexOrThrow(COL_GUITAR_CHORDS));
+            data.ukuleleChords = cursor.getInt(cursor.getColumnIndexOrThrow(COL_UKULELE_CHORDS));
+            data.pianoChords = cursor.getInt(cursor.getColumnIndexOrThrow(COL_PIANO_CHORDS));
+            data.pianoNotes = cursor.getInt(cursor.getColumnIndexOrThrow(COL_PIANO_NOTES));
+
+            int expG = cursor.getInt(cursor.getColumnIndexOrThrow(COL_EXPLORED_GUITAR));
+            int expU = cursor.getInt(cursor.getColumnIndexOrThrow(COL_EXPLORED_UKULELE));
+            int expP = cursor.getInt(cursor.getColumnIndexOrThrow(COL_EXPLORED_PIANO));
+            data.instrumentsExploredCount = expG + expU + expP;
+
+            cursor.close();
+        }
+        return data;
+    }
+
+    public static class ProgressData {
+        public int totalPracticeMinutes = 0;
+        public int guitarChords = 0;
+        public int ukuleleChords = 0;
+        public int pianoChords = 0;
+        public int pianoNotes = 0;
+        public int instrumentsExploredCount = 0;
+    }
+
     // ============================================
-    // ─── NEW TASK SYSTEM METHODS ───
+    // ─── TASK SYSTEM METHODS ───
     // ============================================
 
     public void generateDailyTasksIfMissing(String username, String dateStr) {
@@ -225,7 +319,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             SQLiteDatabase writeDb = this.getWritableDatabase();
             Random r = new Random();
 
-            // Fetch dynamic values based on User level Tiers
             String tierString = getUserTierStatus(username).toLowerCase();
 
             int totalTimeGoal = 20;
@@ -242,11 +335,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 flashcardTimeGoal = 8;
             }
 
-            // Pick a dynamic targeted objective chord or note
             String[] specificChords = {"A Major", "A Minor", "C Major", "D Major", "D Minor", "E Minor", "G Major"};
             String chosenChord = specificChords[r.nextInt(specificChords.length)];
 
-            // Insert tasks with values mapped to Tier
             insertTaskRow(writeDb, username, dateStr, "TOTAL_TIME", String.valueOf(totalTimeGoal));
             insertTaskRow(writeDb, username, dateStr, "CORRECT_CHORDS", String.valueOf(correctChordsGoal));
             insertTaskRow(writeDb, username, dateStr, "SPECIFIC_CHORD", chosenChord);
@@ -275,7 +366,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             int isCompleted = cursor.getInt(cursor.getColumnIndexOrThrow(TASKS_COL_COMPLETED));
             if (isCompleted == 1) {
                 cursor.close();
-                return; // Task already finished and rewarded
+                return;
             }
 
             int currentVal = cursor.getInt(cursor.getColumnIndexOrThrow(TASKS_COL_CURRENT));
@@ -285,7 +376,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             int newVal = currentVal;
             boolean processCompletion = false;
 
-            // Handlers to process single targeted achievements (Chords / Notes)
             if (type.equals("SPECIFIC_CHORD") || type.equals("SPECIFIC_NOTE")) {
                 if (chordPlayed != null && targetVal.equalsIgnoreCase(chordPlayed)) {
                     newVal = 1;
@@ -302,7 +392,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             cv.put(TASKS_COL_CURRENT, newVal);
             if (processCompletion) {
                 cv.put(TASKS_COL_COMPLETED, 1);
-                addExp(username, 15); // Reward 15 EXP automatically
+                addExp(username, 15);
             }
 
             db.update(TABLE_TASKS, cv, TASKS_COL_ID + "=?", new String[]{String.valueOf(id)});
