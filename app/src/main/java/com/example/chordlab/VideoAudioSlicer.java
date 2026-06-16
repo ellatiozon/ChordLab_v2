@@ -26,9 +26,13 @@ public class VideoAudioSlicer {
     }
 
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+    // 1. Core Mathematical Constants
     private static final int SAMPLE_RATE = 16000;
-    private static final int WINDOW_SIZE = 16000; // 1 second
-    private static final int HOP_SIZE = 4000;     // 0.25 second overlap
+    private static final int WINDOW_SIZE = 16000; // Always 1 full second (Required by Neural Net)
+
+    // NEW: The Micro-Buffer Step
+    // 3200 samples = exactly 0.2 seconds. This means the AI makes 5 predictions every second.
+    private static final int HOP_SIZE = 3200;
 
     public void processVideo(Context context, Uri videoUri, SlicerCallback callback) {
         callback.onProgressUpdate("Copying video securely...");
@@ -73,6 +77,24 @@ public class VideoAudioSlicer {
                 callback.onError("Processing failed: " + e.getMessage());
             }
         });
+    }
+
+    public void sliceAudioTrack(float[] audioTrack, SlicerCallback listener) {
+        int totalSamples = audioTrack.length;
+
+        // 2. The Micro-Sliding Loop
+        for (int i = 0; i + WINDOW_SIZE <= totalSamples; i += HOP_SIZE) {
+            float[] windowChunk = new float[WINDOW_SIZE];
+
+            // Copy 16,000 samples starting from the current 'i' position
+            System.arraycopy(audioTrack, i, windowChunk, 0, WINDOW_SIZE);
+
+            // Calculate the exact timestamp for the START of this micro-buffer
+            float timestampSeconds = (float) i / SAMPLE_RATE;
+
+            // Fire the chunk to the AI
+            listener.onSliceReady(windowChunk, timestampSeconds);
+        }
     }
 
     private void sliceAndEmit(File pcmFile, SlicerCallback callback) {

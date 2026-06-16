@@ -4,142 +4,94 @@ import android.content.Context;
 import android.content.res.AssetFileDescriptor;
 import android.util.Log;
 import org.tensorflow.lite.Interpreter;
-
 import java.io.FileInputStream;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.LinkedList;
 
 public class PianoVideoChordAnalyzer {
 
-    // We keep all 3 models in memory for instant comparison
-    private static Interpreter majorTflite;
-    private static Interpreter minorTflite;
-    private static Interpreter accTflite;
+    private static Interpreter tfliteMajors;
 
-    private static final int WINDOW_SIZE = 4;
-    private static final int REQUIRED_VOTES = 2;
-    private static LinkedList<String> videoSlidingWindow = new LinkedList<>();
+    // ONLY the 8 labels from your original Majors model
+    private static final String[] MAJOR_LABELS = {
+            "A major", "B major", "Background Noise", "C major",
+            "D major", "E major", "F major", "G major"
+    };
 
-    // The exact labels from your old setup
-    private static final String[] MAJOR_LABELS = {"A major", "B major", "Background Noise", "C major", "D major", "E major", "F major", "G major"};
-    private static final String[] MINOR_LABELS = {"A minor", "B minor", "Background Noise", "C minor", "D minor", "E minor", "F minor", "G minor"};
-    private static final String[] ACC_LABELS = {"Background Noise", "Bb major", "Bb minor", "C# major", "C# minor", "Eb major", "Eb minor", "F# major", "F# minor", "G# major", "G# minor"};
-
-    // 1. Initialize all 3 models once
-    public static void initModels(Context context) {
+    public static void initModel(Context context) {
+        if (tfliteMajors != null) return;
         try {
-            if (majorTflite == null) majorTflite = new Interpreter(loadModelFile(context, "piano_chords_majors_spectrogram.tflite"));
-            if (minorTflite == null) minorTflite = new Interpreter(loadModelFile(context, "piano_chords_minors_spectrogram.tflite"));
-            if (accTflite == null) accTflite = new Interpreter(loadModelFile(context, "piano_chords_flats_sharps_spectrogram.tflite"));
+            Interpreter.Options options = new Interpreter.Options();
+            options.setNumThreads(2); // Keeps the UI completely smooth
+            tfliteMajors = new Interpreter(loadModelFile(context, "piano_video_majors_spectrogram.tflite"), options);
+            Log.d("ChordLab_MVP", "Engine Initialized: Majors Only.");
         } catch (Exception e) {
-            Log.e("ChordLab_Fusion", "Error loading models: " + e.getMessage());
+            Log.e("ChordLab_MVP", "Failed to load model: " + e.getMessage());
         }
     }
 
-    private static MappedByteBuffer loadModelFile(Context context, String modelName) throws Exception {
-        AssetFileDescriptor fd = context.getAssets().openFd(modelName);
-        FileInputStream fis = new FileInputStream(fd.getFileDescriptor());
-        return fis.getChannel().map(FileChannel.MapMode.READ_ONLY, fd.getStartOffset(), fd.getDeclaredLength());
-    }
+    public static String translateAudioSlice(float[] rawAudioChunk, Context context) {
+        if (tfliteMajors == null) {
+            initModel(context);
+            if (tfliteMajors == null) return "Model Missing";
+        }
 
-    public static void resetAnalyzer() {
-        videoSlidingWindow.clear();
-    }
+        // 1. Format the audio chunk
+        float[] verifiedBuffer = new float[16000];
+        if (rawAudioChunk != null) {
+            System.arraycopy(rawAudioChunk, 0, verifiedBuffer, 0, Math.min(rawAudioChunk.length, 16000));
+        }
 
-    // 2. The Core Fusion Logic
-    public static String analyzeAudioSlice(float[] audioBuffer, Context context) {
-        initModels(context);
-        if (majorTflite == null || minorTflite == null || accTflite == null) return null;
-
-        int inputSize = 16000;
-        float[][] input = new float[1][inputSize];
+        // 2. Amplitude Gate (Silence Filter)
         float maxAmplitude = 0.0f;
-
-        for (float val : audioBuffer) {
+        for (float val : verifiedBuffer) {
             float absVal = Math.abs(val);
             if (absVal > maxAmplitude) maxAmplitude = absVal;
         }
 
-        // Too quiet = instant noise vote
+        // If it's too quiet, instantly return noise
         if (maxAmplitude < 0.05f) {
-            return processVote("Noise");
+            return "Background Noise";
         }
 
-        // Normalize and pad array to exactly 16000
-        for (int i = 0; i < inputSize; i++) {
-            if (i < audioBuffer.length) input[0][i] = audioBuffer[i] / maxAmplitude;
-            else input[0][i] = 0.0f;
+        // 3. Normalize for the model
+        float[][] inputTensor = new float[1][16000];
+        for (int i = 0; i < verifiedBuffer.length; i++) {
+            inputTensor[0][i] = verifiedBuffer[i] / maxAmplitude;
         }
 
-        float[][] majorOut = new float[1][MAJOR_LABELS.length];
-        float[][] minorOut = new float[1][MINOR_LABELS.length];
-        float[][] accOut = new float[1][ACC_LABELS.length];
+        // 4. Run Inference
+        float[][] outputDistribution = new float[1][MAJOR_LABELS.length];
+        tfliteMajors.run(inputTensor, outputDistribution);
 
-        try {
-            // Run all 3 models simultaneously on the same 1-second chunk
-            majorTflite.run(input, majorOut);
-            minorTflite.run(input, minorOut);
-            accTflite.run(input, accOut);
-        } catch (Exception e) {
-            Log.e("ChordLab_Fusion", "Inference Crash: " + e.getMessage());
-            return null;
+        // 5. Find the winner
+        int bestIdx = -1;
+        float highestConfidence = -1.0f;
+
+        for (int i = 0; i < MAJOR_LABELS.length; i++) {
+            if (outputDistribution[0][i] > highestConfidence) {
+                highestConfidence = outputDistribution[0][i];
+                bestIdx = i;
+            }
         }
 
-        // Find best guess from Major Model
-        int bestMajorIdx = 0; float maxMajor = 0;
-        for (int i=0; i<majorOut[0].length; i++) { if (majorOut[0][i] > maxMajor) { maxMajor = majorOut[0][i]; bestMajorIdx = i; } }
+        String predictedChord = MAJOR_LABELS[bestIdx];
 
-        // Find best guess from Minor Model
-        int bestMinorIdx = 0; float maxMinor = 0;
-        for (int i=0; i<minorOut[0].length; i++) { if (minorOut[0][i] > maxMinor) { maxMinor = minorOut[0][i]; bestMinorIdx = i; } }
-
-        // Find best guess from Accidental Model
-        int bestAccIdx = 0; float maxAcc = 0;
-        for (int i=0; i<accOut[0].length; i++) { if (accOut[0][i] > maxAcc) { maxAcc = accOut[0][i]; bestAccIdx = i; } }
-
-        // 3. The Showdown: Which model is the most confident?
-        float ultimateConfidence = maxMajor;
-        String ultimateWinner = MAJOR_LABELS[bestMajorIdx];
-
-        if (maxMinor > ultimateConfidence) {
-            ultimateConfidence = maxMinor;
-            ultimateWinner = MINOR_LABELS[bestMinorIdx];
-        }
-        if (maxAcc > ultimateConfidence) {
-            ultimateConfidence = maxAcc;
-            ultimateWinner = ACC_LABELS[bestAccIdx];
+        // Strict 60% confidence threshold to prevent flickering
+        if (highestConfidence < 0.60f) {
+            return "Background Noise";
         }
 
-        // Log the final decision to help us debug
-        Log.d("ChordLab_Fusion", "Fusion Winner: " + ultimateWinner + " | Confidence: " + ultimateConfidence);
-
-        // 4. Send the winner to the Voting Filter
-        if (ultimateWinner.equalsIgnoreCase("Background Noise") || ultimateConfidence < 0.40f) {
-            return processVote("Noise");
-        } else {
-            return processVote(ultimateWinner);
-        }
+        Log.d("ChordLab_MVP", "Detected: " + predictedChord + " (" + (highestConfidence * 100) + "%)");
+        return predictedChord;
     }
 
-    // 5. The Voting Logic (Ensures we don't pick up random glitches)
-    private static String processVote(String currentWinner) {
-        videoSlidingWindow.add(currentWinner);
-        while (videoSlidingWindow.size() > WINDOW_SIZE) {
-            videoSlidingWindow.removeFirst();
-        }
-
-        String topCandidate = videoSlidingWindow.getLast();
-        if (!topCandidate.equals("Noise")) {
-            int voteCount = 0;
-            for (String frame : videoSlidingWindow) {
-                if (frame.equals(topCandidate)) voteCount++;
-            }
-            if (voteCount >= REQUIRED_VOTES) {
-                videoSlidingWindow.clear();
-                return topCandidate; // We have a confirmed chord!
-            }
-        }
-        return null;
+    private static MappedByteBuffer loadModelFile(Context context, String modelName) throws Exception {
+        AssetFileDescriptor fileDescriptor = context.getAssets().openFd(modelName);
+        FileInputStream inputStream = new FileInputStream(fileDescriptor.getFileDescriptor());
+        FileChannel fileChannel = inputStream.getChannel();
+        long startOffset = fileDescriptor.getStartOffset();
+        long declaredLength = fileDescriptor.getDeclaredLength();
+        return fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength);
     }
 }

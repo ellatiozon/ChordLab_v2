@@ -1,204 +1,359 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="#1E1E1E">
+    android:layout_height="match_parent">
 
-    <!-- Header -->
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:contentDescription="@null"
+        android:scaleType="centerCrop"
+        android:src="@drawable/main_dashboard_bg" />
+
     <LinearLayout
-        android:id="@+id/headerLayout"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:padding="16dp"
-        app:layout_constraintTop_toTopOf="parent">
+        android:layout_height="match_parent"
+        android:orientation="vertical">
 
-        <ImageView
-            android:id="@+id/btnBack"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:padding="8dp"
-            android:src="@android:drawable/ic_menu_revert"
-            app:tint="#FFFFFF" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:letterSpacing="0.05"
-            android:text="VIDEO TRANSLATOR: PIANO"
-            android:textColor="#FFFFFF"
-            android:textSize="18sp"
-            android:textStyle="bold" />
-    </LinearLayout>
-
-    <!-- Upload Section -->
-    <androidx.cardview.widget.CardView
-        android:id="@+id/cardUpload"
-        android:layout_width="match_parent"
-        android:layout_height="200dp"
-        android:layout_marginHorizontal="24dp"
-        android:layout_marginTop="16dp"
-        app:cardBackgroundColor="#2C2C2C"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="4dp"
-        app:layout_constraintTop_toBottomOf="@id/headerLayout">
-
-        <LinearLayout
+        <RelativeLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:padding="24dp">
+            android:layout_height="229dp">
 
-            <ImageView
-                android:layout_width="64dp"
-                android:layout_height="64dp"
-                android:src="@android:drawable/ic_menu_camera"
-                app:tint="#CD128B" />
-
-            <TextView
+            <LinearLayout
+                android:id="@+id/btnBackToDashboard"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="Upload Song Cover (.mp4)"
-                android:textColor="#FFFFFF"
-                android:textSize="16sp"
-                android:textStyle="bold" />
-
-            <Button
-                android:id="@+id/btnUploadSimulate"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:backgroundTint="#CD128B"
-                android:text="Select Video"
-                android:textColor="#FFFFFF" />
-        </LinearLayout>
-    </androidx.cardview.widget.CardView>
-
-    <!-- Processing State (Hidden by default) -->
-    <LinearLayout
-        android:id="@+id/processingLayout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
-        android:gravity="center"
-        android:orientation="vertical"
-        android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/cardUpload">
-
-        <ProgressBar
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:indeterminateTint="#F08118" />
-
-        <TextView
-            android:id="@+id/txtProcessingStatus"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="Extracting Acoustic Chromagram..."
-            android:textColor="#F08118"
-            android:textSize="14sp"
-            android:textStyle="bold" />
-    </LinearLayout>
-
-    <!-- Results Section (Hidden by default) -->
-    <ScrollView
-        android:id="@+id/resultsScrollView"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_marginTop="24dp"
-        android:background="#FAF6F0"
-        android:fillViewport="true"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/cardUpload">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="24dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:letterSpacing="0.1"
-                android:text="DETECTED TIMELINE"
-                android:textColor="#F08118"
-                android:textSize="13sp"
-                android:textStyle="bold" />
-
-            <HorizontalScrollView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:scrollbars="none">
-
-                <LinearLayout
-                    android:id="@+id/chordTimelineContainer"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal" />
-            </HorizontalScrollView>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="32dp"
-                android:letterSpacing="0.1"
-                android:text="PIANO TRANSLATION"
-                android:textColor="#CD128B"
-                android:textSize="13sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/txtSelectedChord"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="Tap a chord above"
-                android:textColor="#3E3129"
-                android:textSize="24sp"
-                android:textStyle="bold" />
-
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
-                android:layout_height="160dp"
-                android:layout_marginTop="16dp"
-                app:cardBackgroundColor="#FFFFFF"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="2dp"
-                app:strokeColor="#CD128B"
-                app:strokeWidth="3dp">
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="40dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?android:attr/selectableItemBackgroundBorderless"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="8dp">
 
                 <ImageView
-                    android:id="@+id/imgTranslatedDiagram"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:scaleType="fitCenter" />
-            </com.google.android.material.card.MaterialCardView>
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="Back"
+                    android:src="@drawable/ic_arrow_back"
+                    app:tint="#FFFFFF" />
 
-            <TextView
-                android:id="@+id/txtDurationTimeline"
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentBottom="true"
+                android:layout_marginStart="20dp"
+                android:layout_marginBottom="32dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:letterSpacing="0.2"
+                    android:text="CHORDLAB"
+                    android:textColor="#CCDDFF"
+                    android:textSize="11sp" />
+
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <com.example.chordlab.OutlinedTextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Chord Detector"
+                        android:textColor="#FFFFFF"
+                        android:textSize="28sp"
+                        android:textStyle="bold"
+                        android:padding="6dp" />
+
+                </LinearLayout>
+            </LinearLayout>
+        </RelativeLayout>
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipToPadding="false"
+            android:paddingBottom="32dp"
+            android:scrollbars="none">
+
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
-                android:gravity="center"
-                android:text="[0:00 - 0:00] Select a chord"
-                android:textColor="#1E1E1E"
-                android:textSize="22sp"
-                android:textStyle="bold" />
+                android:orientation="vertical"
+                android:padding="16dp">
 
-        </LinearLayout>
-    </ScrollView>
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="20dp"
+                    android:background="@drawable/bg_info_badge"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="12dp">
 
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🎹"
+                        android:textSize="20sp" />
 
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Piano Chords Supported"
+                            android:textColor="@color/accent_pink"
+                            android:textSize="13sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Guitar &amp; Ukulele detection coming soon"
+                            android:textColor="@color/text_gray"
+                            android:textSize="11sp" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="10dp"
+                    android:letterSpacing="0.1"
+                    android:text="UPLOAD AUDIO"
+                    android:textColor="@color/accent_pink"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <androidx.cardview.widget.CardView
+                    android:id="@+id/cardUploadArea"
+                    android:layout_width="match_parent"
+                    android:layout_height="180dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?android:attr/selectableItemBackground"
+                    app:cardBackgroundColor="#00000000"
+                    app:cardCornerRadius="20dp"
+                    app:cardElevation="0dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/bg_upload_area"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:padding="20dp">
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:layout_marginBottom="12dp">
+
+                            <View android:layout_width="4dp" android:layout_height="12dp"
+                                android:layout_marginEnd="3dp" android:background="#33E91E8C" />
+                            <View android:layout_width="4dp" android:layout_height="24dp"
+                                android:layout_marginEnd="3dp" android:background="#66E91E8C" />
+                            <View android:layout_width="4dp" android:layout_height="36dp"
+                                android:layout_marginEnd="3dp" android:background="#99E91E8C" />
+                            <View android:layout_width="4dp" android:layout_height="48dp"
+                                android:layout_marginEnd="3dp" android:background="@color/accent_pink" />
+                            <View android:layout_width="4dp" android:layout_height="36dp"
+                                android:layout_marginEnd="3dp" android:background="#99E91E8C" />
+                            <View android:layout_width="4dp" android:layout_height="24dp"
+                                android:layout_marginEnd="3dp" android:background="#66E91E8C" />
+                            <View android:layout_width="4dp" android:layout_height="12dp"
+                                android:background="#33E91E8C" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/tvUploadStatusText"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Tap to select audio file"
+                            android:textColor="@color/accent_pink"
+                            android:textSize="16sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tvSelectedFileName"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:ellipsize="middle"
+                            android:gravity="center"
+                            android:singleLine="true"
+                            android:text="Supported: .mp4  .mp3  .wav"
+                            android:textColor="@color/text_gray"
+                            android:textSize="13sp" />
+                    </LinearLayout>
+                </androidx.cardview.widget.CardView>
+
+                <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/btnProcessAudio"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:layout_marginTop="16dp"
+                    android:alpha="0.5"
+                    android:background="@drawable/bg_mode_selected"
+                    android:enabled="false"
+                    android:text="🎵  Recognize Chords"
+                    android:textAllCaps="false"
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:id="@+id/layoutProgress"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:gravity="center"
+                    android:orientation="horizontal"
+                    android:visibility="gone">
+
+                    <ProgressBar
+                        android:id="@+id/progressBar"
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:indeterminateTint="@color/accent_pink" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:text="Analyzing audio..."
+                        android:textColor="@color/accent_pink"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="28dp"
+                    android:layout_marginBottom="10dp"
+                    android:letterSpacing="0.1"
+                    android:text="DETECTION RESULTS"
+                    android:textColor="@color/accent_pink"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <androidx.cardview.widget.CardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:cardBackgroundColor="#FFFFFF"
+                    app:cardCornerRadius="20dp"
+                    app:cardElevation="4dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="20dp">
+
+                        <LinearLayout
+                            android:id="@+id/layoutResultSummary"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="16dp"
+                            android:orientation="horizontal"
+                            android:visibility="gone">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginEnd="8dp"
+                                android:layout_weight="1"
+                                android:background="@drawable/bg_mode_selected"
+                                android:gravity="center"
+                                android:orientation="vertical"
+                                android:padding="12dp">
+
+                                <TextView
+                                    android:id="@+id/tvDetectedKey"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="C"
+                                    android:textColor="#FFFFFF"
+                                    android:textSize="28sp"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Key"
+                                    android:textColor="#FFD0E8"
+                                    android:textSize="11sp" />
+                            </LinearLayout>
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:background="@drawable/bg_mode_selected"
+                                android:gravity="center"
+                                android:orientation="vertical"
+                                android:padding="12dp">
+
+                                <TextView
+                                    android:id="@+id/tvChordCount"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="0"
+                                    android:textColor="#FFFFFF"
+                                    android:textSize="28sp"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:text="Chords&#10;Found"
+                                    android:textColor="#FFD0E8"
+                                    android:textSize="11sp" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <View
+                            android:id="@+id/resultsDivider"
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:layout_marginBottom="16dp"
+                            android:background="#F0F0F0"
+                            android:visibility="gone" />
+
+                        <TextView
+                            android:id="@+id/tvResultsDisplay"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center"
+                            android:lineSpacingMultiplier="1.4"
+                            android:text="Upload a piano audio track and tap\n'Recognize Chords' to detect chords."
+                            android:textColor="#AAAAAA"
+                            android:textSize="14sp" />
+
+                    </LinearLayout>
+                </androidx.cardview.widget.CardView>
+
+            </LinearLayout>
+        </ScrollView>
+    </LinearLayout>
+</FrameLayout>
