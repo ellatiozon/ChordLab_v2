@@ -27,6 +27,10 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.viewpager2.widget.ViewPager2;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+
 public class MainActivity extends AppCompatActivity {
 
     private LinearLayout cardGuitar, cardPiano, cardSax;
@@ -59,6 +63,12 @@ public class MainActivity extends AppCompatActivity {
         String username = prefs.getString("username", "User");
         if (tvWelcomeName != null) {
             tvWelcomeName.setText("Welcome, " + username + "!");
+        }
+
+        // ── NEW: PRE-GENERATE DAILY GOALS ──
+        if (!username.equals("User") && !username.isEmpty()) {
+            String todayKey = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+            myDb.generateDailyTasksIfMissing(username, todayKey);
         }
 
         // ── 2. INSTRUMENT SELECTION ACTION LISTENERS ──
@@ -226,19 +236,16 @@ public class MainActivity extends AppCompatActivity {
         String username = prefs.getString("username", "");
         if (username.isEmpty()) return;
 
-        // Fetching progress values from the database
         int[] expLevel = myDb.getExpAndLevel(username);
         int exp   = expLevel[0];
         int level = expLevel[1];
 
-        // Fetching the converted text Tier mapping string (e.g. "Beginner I")
         String tierStatus = myDb.getUserTierStatus(username);
 
         if (progressGuitar != null) {
             progressGuitar.setProgress(exp);
         }
 
-        // Dynamically updates "Level 1" to look exactly like "Level 1 - Beginner I"
         if (tvProgressLevel != null) {
             tvProgressLevel.setText("Level " + level + " - " + tierStatus);
         }

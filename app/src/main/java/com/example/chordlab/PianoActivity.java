@@ -36,6 +36,8 @@ import androidx.cardview.widget.CardView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Locale;
 import java.util.Random;
 
@@ -83,6 +85,9 @@ public class PianoActivity extends AppCompatActivity {
 
     private View instructionOverlay;
 
+    // ── TASK TRACKING TIMESTAMPS ──
+    private long sessionStartTime = 0;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -110,6 +115,46 @@ public class PianoActivity extends AppCompatActivity {
 
         instructionOverlay = findViewById(R.id.instructionOverlay);
         showSessionInstructions();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        // Record active viewport entry timestamp
+        sessionStartTime = System.currentTimeMillis();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        // Calculate accumulated duration safely
+        if (sessionStartTime > 0) {
+            long totalSessionMs = System.currentTimeMillis() - sessionStartTime;
+            int totalSessionMins = (int) (totalSessionMs / 60000);
+
+            // 30 seconds rounding buffer fallback
+            if (totalSessionMs >= 30000 && totalSessionMins == 0) {
+                totalSessionMins = 1;
+            }
+
+            if (totalSessionMins > 0) {
+                SharedPreferences prefs = getSharedPreferences("UserSession", MODE_PRIVATE);
+                String username = prefs.getString("username", "");
+                if (!username.isEmpty()) {
+                    String todayKey = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+                    DatabaseHelper db = new DatabaseHelper(this);
+
+                    // Track overall instrument session minutes
+                    db.trackTaskProgress(username, todayKey, "TOTAL_TIME", totalSessionMins, null);
+
+                    // Add flashcard review tracking if active
+                    if ("FLASHCARDS".equalsIgnoreCase(sessionMode)) {
+                        db.trackTaskProgress(username, todayKey, "FLASHCARD_TIME", totalSessionMins, null);
+                    }
+                }
+            }
+            sessionStartTime = 0; // reset
+        }
     }
 
     //For alert instructions
@@ -162,8 +207,6 @@ public class PianoActivity extends AppCompatActivity {
         bgNoteGradient = findViewById(R.id.bgNoteGradient);
         bgChordGradient = findViewById(R.id.bgChordGradient);
         findViewById(R.id.btnBack).setOnClickListener(v -> finish());
-
-
     }
 
     private void setupUIForMode() {
@@ -423,8 +466,30 @@ public class PianoActivity extends AppCompatActivity {
             DatabaseHelper db = new DatabaseHelper(this);
             db.addExp(username, 1);
             db.incrementChordsLearned(username);
+
+            // ── TASK TRACKING PROGRESSION HANDLER ──
+            String todayKey = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+
+            if (isChordMode != null && isChordMode) {
+                // Normalizing piano target naming convention (e.g. "C major" -> "C Major") to safely match database records
+                String standardChordName = currentTarget;
+                if (currentTarget.toLowerCase().contains("major")) {
+                    standardChordName = currentTarget.split(" ")[0] + " Major";
+                } else if (currentTarget.toLowerCase().contains("minor")) {
+                    standardChordName = currentTarget.split(" ")[0] + " Minor";
+                }
+
+                // 1. Advance total count of matching chords
+                db.trackTaskProgress(username, todayKey, "CORRECT_CHORDS", 1, null);
+                // 2. Clear target specific challenge objective if tracked
+                db.trackTaskProgress(username, todayKey, "SPECIFIC_CHORD", 1, standardChordName);
+            } else if (isChordMode != null) {
+                // 3. Clear target note goals
+                db.trackTaskProgress(username, todayKey, "SPECIFIC_NOTE", 1, currentTarget);
+            }
         }
     }
+
     private void startAudioThread() { if (!isListening) { isListening = true; audioThread = new Thread(this::audioLoop); audioThread.start(); } }
 
     private void audioLoop() {

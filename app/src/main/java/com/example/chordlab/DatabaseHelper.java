@@ -5,6 +5,7 @@ import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import java.util.Random;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
 
@@ -15,9 +16,19 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String COL_3 = "EMAIL";
     private static final String COL_4 = "PASSWORD";
 
-    // Bump version from 2 to 3
+    // ─── NEW TASKS TABLE CONSTANTS ───
+    private static final String TABLE_TASKS = "daily_tasks";
+    private static final String TASKS_COL_ID = "ID";
+    private static final String TASKS_COL_USERNAME = "USERNAME";
+    private static final String TASKS_COL_DATE = "TASK_DATE";
+    private static final String TASKS_COL_TYPE = "TASK_TYPE"; // TOTAL_TIME, CORRECT_CHORDS, SPECIFIC_CHORD, SPECIFIC_NOTE, FLASHCARD_TIME
+    private static final String TASKS_COL_TARGET = "TARGET_VALUE";
+    private static final String TASKS_COL_CURRENT = "CURRENT_VALUE";
+    private static final String TASKS_COL_COMPLETED = "IS_COMPLETED"; // 0 = false, 1 = true
+
+    // Bump version from 3 to 4 to trigger onUpgrade for the tasks table
     public DatabaseHelper(Context context) {
-        super(context, DATABASE_NAME, null, 3);
+        super(context, DATABASE_NAME, null, 4);
     }
 
     @Override
@@ -31,7 +42,10 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 "DAILY_GOAL TEXT, " +
                 "EXP INTEGER DEFAULT 0, " +
                 "LEVEL INTEGER DEFAULT 1, " +
-                "CHORDS_LEARNED INTEGER DEFAULT 0)");   // ← NEW COLUMN
+                "CHORDS_LEARNED INTEGER DEFAULT 0)");
+
+        // Create tasks table for new database installations
+        createTasksTable(db);
     }
 
     @Override
@@ -43,6 +57,20 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         if (oldVersion < 3) {
             db.execSQL("ALTER TABLE " + TABLE_NAME + " ADD COLUMN CHORDS_LEARNED INTEGER DEFAULT 0");
         }
+        if (oldVersion < 4) {
+            createTasksTable(db);
+        }
+    }
+
+    private void createTasksTable(SQLiteDatabase db) {
+        db.execSQL("CREATE TABLE " + TABLE_TASKS + " (" +
+                TASKS_COL_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                TASKS_COL_USERNAME + " TEXT, " +
+                TASKS_COL_DATE + " TEXT, " +
+                TASKS_COL_TYPE + " TEXT, " +
+                TASKS_COL_TARGET + " TEXT, " +
+                TASKS_COL_CURRENT + " INTEGER DEFAULT 0, " +
+                TASKS_COL_COMPLETED + " INTEGER DEFAULT 0)");
     }
 
     public boolean insertUser(String username, String email, String password) {
@@ -63,16 +91,12 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return exists;
     }
 
-    // ─── NEW METHOD: FETCH EMAIL LINKED TO THE USERNAME ───
     public String getUserEmail(String username) {
         SQLiteDatabase db = this.getReadableDatabase();
         String email = "";
-
         Cursor cursor = db.rawQuery("SELECT " + COL_3 + " FROM " + TABLE_NAME + " WHERE " + COL_2 + "=?", new String[]{username});
-
         if (cursor != null) {
             if (cursor.moveToFirst()) {
-                // Fetch email from column index 0 safely
                 email = cursor.getString(0);
             }
             cursor.close();
@@ -104,10 +128,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public boolean updateUserDetails(String username, String instrument, String goal) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues contentValues = new ContentValues();
-
         contentValues.put("instrument", instrument);
         contentValues.put("daily_goal", goal);
-
         int result = db.update("users", contentValues, "username = ?", new String[]{username});
         return result > 0;
     }
@@ -150,45 +172,26 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     public String getUserTierStatus(String username) {
         int[] expAndLevel = getExpAndLevel(username);
-        int level = expAndLevel[1]; // Get the level from index 1
+        int level = expAndLevel[1];
 
-        if (level >= 1 && level <= 10) {
-            return "Beginner I";
-        } else if (level >= 11 && level <= 20) {
-            return "Beginner II";
-        } else if (level >= 21 && level <= 30) {
-            return "Beginner III";
-        } else if (level >= 31 && level <= 40) {
-            return "Intermediate I";
-        } else if (level >= 41 && level <= 50) {
-            return "Intermediate II";
-        } else if (level >= 51 && level <= 60) {
-            return "Intermediate III";
-        } else if (level >= 61 && level <= 70) {
-            return "Advanced I";
-        } else if (level >= 71 && level <= 80) {
-            return "Advanced II";
-        } else if (level >= 81) {
-            return "Advanced III";
-        } {
-            return "Beginner I"; // Fallback just in case level is 0 or uninitialized
-        }
+        if (level >= 1 && level <= 10) return "Beginner I";
+        else if (level >= 11 && level <= 20) return "Beginner II";
+        else if (level >= 21 && level <= 30) return "Beginner III";
+        else if (level >= 31 && level <= 40) return "Intermediate I";
+        else if (level >= 41 && level <= 50) return "Intermediate II";
+        else if (level >= 51 && level <= 60) return "Intermediate III";
+        else if (level >= 61 && level <= 70) return "Advanced I";
+        else if (level >= 71 && level <= 80) return "Advanced II";
+        else if (level >= 81) return "Advanced III";
+        return "Beginner I";
     }
 
     public String getFullLevelAndTierString(String username) {
         int[] expAndLevel = getExpAndLevel(username);
         int level = expAndLevel[1];
-
-        // Call your existing tier logic method
         String tier = getUserTierStatus(username);
-
-        // Outputs: "Level X - Tier Name"
         return "Level " + level + " - " + tier;
     }
-
-    // ============================================
-    // --- CHORDS LEARNED TRACKER METHODS ---
-    // ============================================
 
     public int getChordsLearned(String username) {
         SQLiteDatabase db = this.getReadableDatabase();
@@ -207,5 +210,108 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         ContentValues cv = new ContentValues();
         cv.put("CHORDS_LEARNED", currentChords + 1);
         db.update(TABLE_NAME, cv, "USERNAME=?", new String[]{username});
+    }
+
+    // ============================================
+    // ─── NEW TASK SYSTEM METHODS ───
+    // ============================================
+
+    public void generateDailyTasksIfMissing(String username, String dateStr) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery("SELECT * FROM " + TABLE_TASKS + " WHERE " + TASKS_COL_USERNAME + "=? AND " + TASKS_COL_DATE + "=?", new String[]{username, dateStr});
+
+        if (cursor != null && cursor.getCount() == 0) {
+            cursor.close();
+            SQLiteDatabase writeDb = this.getWritableDatabase();
+            Random r = new Random();
+
+            // Fetch dynamic values based on User level Tiers
+            String tierString = getUserTierStatus(username).toLowerCase();
+
+            int totalTimeGoal = 20;
+            int correctChordsGoal = 5;
+            int flashcardTimeGoal = 3;
+
+            if (tierString.contains("intermediate")) {
+                totalTimeGoal = 30;
+                correctChordsGoal = 10;
+                flashcardTimeGoal = 5;
+            } else if (tierString.contains("advanced")) {
+                totalTimeGoal = 40;
+                correctChordsGoal = 15;
+                flashcardTimeGoal = 8;
+            }
+
+            // Pick a dynamic targeted objective chord or note
+            String[] specificChords = {"A Major", "A Minor", "C Major", "D Major", "D Minor", "E Minor", "G Major"};
+            String chosenChord = specificChords[r.nextInt(specificChords.length)];
+
+            // Insert tasks with values mapped to Tier
+            insertTaskRow(writeDb, username, dateStr, "TOTAL_TIME", String.valueOf(totalTimeGoal));
+            insertTaskRow(writeDb, username, dateStr, "CORRECT_CHORDS", String.valueOf(correctChordsGoal));
+            insertTaskRow(writeDb, username, dateStr, "SPECIFIC_CHORD", chosenChord);
+            insertTaskRow(writeDb, username, dateStr, "FLASHCARD_TIME", String.valueOf(flashcardTimeGoal));
+        } else if (cursor != null) {
+            cursor.close();
+        }
+    }
+
+    private void insertTaskRow(SQLiteDatabase db, String username, String date, String type, String target) {
+        ContentValues cv = new ContentValues();
+        cv.put(TASKS_COL_USERNAME, username);
+        cv.put(TASKS_COL_DATE, date);
+        cv.put(TASKS_COL_TYPE, type);
+        cv.put(TASKS_COL_TARGET, target);
+        cv.put(TASKS_COL_CURRENT, 0);
+        cv.put(TASKS_COL_COMPLETED, 0);
+        db.insert(TABLE_TASKS, null, cv);
+    }
+
+    public void trackTaskProgress(String username, String dateStr, String type, int progressIncrement, String chordPlayed) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        Cursor cursor = db.rawQuery("SELECT * FROM " + TABLE_TASKS + " WHERE " + TASKS_COL_USERNAME + "=? AND " + TASKS_COL_DATE + "=? AND " + TASKS_COL_TYPE + "=?", new String[]{username, dateStr, type});
+
+        if (cursor != null && cursor.moveToFirst()) {
+            int isCompleted = cursor.getInt(cursor.getColumnIndexOrThrow(TASKS_COL_COMPLETED));
+            if (isCompleted == 1) {
+                cursor.close();
+                return; // Task already finished and rewarded
+            }
+
+            int currentVal = cursor.getInt(cursor.getColumnIndexOrThrow(TASKS_COL_CURRENT));
+            String targetVal = cursor.getString(cursor.getColumnIndexOrThrow(TASKS_COL_TARGET));
+            int id = cursor.getInt(cursor.getColumnIndexOrThrow(TASKS_COL_ID));
+
+            int newVal = currentVal;
+            boolean processCompletion = false;
+
+            // Handlers to process single targeted achievements (Chords / Notes)
+            if (type.equals("SPECIFIC_CHORD") || type.equals("SPECIFIC_NOTE")) {
+                if (chordPlayed != null && targetVal.equalsIgnoreCase(chordPlayed)) {
+                    newVal = 1;
+                    processCompletion = true;
+                }
+            } else {
+                newVal += progressIncrement;
+                if (newVal >= Integer.parseInt(targetVal)) {
+                    processCompletion = true;
+                }
+            }
+
+            ContentValues cv = new ContentValues();
+            cv.put(TASKS_COL_CURRENT, newVal);
+            if (processCompletion) {
+                cv.put(TASKS_COL_COMPLETED, 1);
+                addExp(username, 15); // Reward 15 EXP automatically
+            }
+
+            db.update(TABLE_TASKS, cv, TASKS_COL_ID + "=?", new String[]{String.valueOf(id)});
+            cursor.close();
+        }
+    }
+
+    public Cursor getDailyTasksCursor(String username, String dateStr) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        return db.rawQuery("SELECT * FROM " + TABLE_TASKS + " WHERE " + TASKS_COL_USERNAME + "=? AND " + TASKS_COL_DATE + "=?", new String[]{username, dateStr});
     }
 }
