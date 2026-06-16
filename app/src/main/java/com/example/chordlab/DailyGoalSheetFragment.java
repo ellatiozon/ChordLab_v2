@@ -3,6 +3,7 @@ package com.example.chordlab;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.database.Cursor;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -20,32 +21,11 @@ import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Date;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Random;
-import java.util.Set;
 
 public class DailyGoalSheetFragment extends BottomSheetDialogFragment {
-
-    private static final String[][] GOAL_POOL = {
-            {"Warm Up Goals",           "5"},
-            {"Practice C Major Chord",  "10"},
-            {"Flash Card Review",       "10"},
-            {"Metronome Drill",         "5"},
-            {"Scale Run Practice",      "10"},
-            {"Chord Transition Drill",  "10"},
-            {"Finger Stretching",       "5"},
-            {"Rhythm Clapping",         "5"},
-            {"Song Section Practice",   "15"},
-            {"Ear Training",            "10"},
-            {"Sight Reading",           "10"},
-            {"Improvisation Exercise",  "10"},
-    };
-
-    private static final int TASKS_PER_DAY = 4;
 
     // ── Views ────────────────────────────────────────────────────────────────
     private TextView tvProgressPercent, tvMinutesPracticed;
@@ -54,11 +34,11 @@ public class DailyGoalSheetFragment extends BottomSheetDialogFragment {
     private LinearLayout taskContainer;
 
     // ── State ────────────────────────────────────────────────────────────────
-    private List<String[]> todayTasks;   // [name, minutes]
-    private boolean[] taskCompleted;
+    private List<String[]> todayTasks;   // [taskTitle, targetValue, taskType, currentValue, isCompleted]
     private SharedPreferences prefs;
     private String todayKey;
-    private int totalGoalMinutes;
+    private String currentUsername;
+    private DatabaseHelper dbHelper;
 
     public static DailyGoalSheetFragment newInstance() {
         return new DailyGoalSheetFragment();
@@ -76,8 +56,13 @@ public class DailyGoalSheetFragment extends BottomSheetDialogFragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
+        dbHelper = new DatabaseHelper(requireContext());
         prefs = requireContext().getSharedPreferences("DailyGoalPrefs", Context.MODE_PRIVATE);
         todayKey = getTodayKey();
+
+        // Retrieve active user session
+        SharedPreferences sessionPrefs = requireContext().getSharedPreferences("UserSession", Context.MODE_PRIVATE);
+        currentUsername = sessionPrefs.getString("username", "");
 
         // ── Bind views from inflated layout ──
         tvProgressPercent  = view.findViewById(R.id.tvProgressPercent);
@@ -87,13 +72,11 @@ public class DailyGoalSheetFragment extends BottomSheetDialogFragment {
         tvCurrentStreak    = view.findViewById(R.id.tvCurrentStreak);
         tvBestStreak       = view.findViewById(R.id.tvBestStreak);
 
-        // ── BACK BUTTON: REDIRECTS BACK TO PROFILE MENU ──
+        // ── BACK BUTTON ──
         View btnBack = view.findViewById(R.id.btnBackDailyGoal);
         if (btnBack != null) {
             btnBack.setOnClickListener(v -> {
-                dismiss(); // Dismisses the Daily Goal sheet smoothly
-
-                // Instantly slides the Profile menu fragment back up!
+                dismiss();
                 ProfileSheetFragment profileSheet = ProfileSheetFragment.newInstance();
                 profileSheet.show(getParentFragmentManager(), "profile_sheet");
             });
@@ -105,12 +88,10 @@ public class DailyGoalSheetFragment extends BottomSheetDialogFragment {
         tvCurrentStreak.setText(String.valueOf(currentStreak));
         tvBestStreak.setText(String.valueOf(bestStreak));
 
-        // ── Load or generate today's tasks ──
-        todayTasks       = loadOrGenerateTasks();
-        taskCompleted    = loadCompletionState();
-        totalGoalMinutes = getTotalMinutes();
+        // ── Load tasks from SQLite ──
+        loadTasksFromDatabase();
 
-        // ── Render tasks ──
+        // ── Render and update progress ──
         renderTasks();
         updateProgress();
     }
@@ -129,61 +110,52 @@ public class DailyGoalSheetFragment extends BottomSheetDialogFragment {
         }
     }
 
-    private List<String[]> loadOrGenerateTasks() {
-        List<String[]> tasks = new ArrayList<>();
-        String savedTasks = prefs.getString(todayKey + "_tasks", null);
+    private void loadTasksFromDatabase() {
+        todayTasks = new ArrayList<>();
+        if (currentUsername.isEmpty()) return;
 
-        if (savedTasks != null) {
-            String[] parts = savedTasks.split(",");
-            for (String part : parts) {
-                String[] pair = part.split("\\|");
-                if (pair.length == 2) tasks.add(pair);
+        // Ensure user's unique daily requirements are allocated for today
+        dbHelper.generateDailyTasksIfMissing(currentUsername, todayKey);
+
+        Cursor cursor = dbHelper.getDailyTasksCursor(currentUsername, todayKey);
+        if (cursor != null) {
+            while (cursor.moveToNext()) {
+                String type = cursor.getString(cursor.getColumnIndexOrThrow("TASK_TYPE"));
+                String target = cursor.getString(cursor.getColumnIndexOrThrow("TARGET_VALUE"));
+                String current = cursor.getString(cursor.getColumnIndexOrThrow("CURRENT_VALUE"));
+                String completed = cursor.getString(cursor.getColumnIndexOrThrow("IS_COMPLETED"));
+
+                String taskTitle = "";
+                switch (type) {
+                    case "TOTAL_TIME":
+                        taskTitle = "Practice Time (" + target + " mins total)";
+                        break;
+                    case "CORRECT_CHORDS":
+                        taskTitle = "Get " + target + " Chords Correct";
+                        break;
+                    case "SPECIFIC_CHORD":
+                        taskTitle = "Play " + target + " Once";
+                        break;
+                    case "FLASHCARD_TIME":
+                        taskTitle = "Use Flashcards for " + target + " mins";
+                        break;
+                }
+                todayTasks.add(new String[]{taskTitle, target, type, current, completed});
             }
-        } else {
-            List<String[]> pool = new ArrayList<>();
-            for (String[] goal : GOAL_POOL) pool.add(goal);
-            Collections.shuffle(pool, new Random());
-
-            for (int i = 0; i < TASKS_PER_DAY && i < pool.size(); i++) {
-                tasks.add(pool.get(i));
-            }
-
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < tasks.size(); i++) {
-                sb.append(tasks.get(i)[0]).append("|").append(tasks.get(i)[1]);
-                if (i < tasks.size() - 1) sb.append(",");
-            }
-            prefs.edit().putString(todayKey + "_tasks", sb.toString()).apply();
+            cursor.close();
         }
-        return tasks;
-    }
-
-    private boolean[] loadCompletionState() {
-        boolean[] completed = new boolean[todayTasks.size()];
-        Set<String> completedSet = prefs.getStringSet(todayKey + "_completed", new HashSet<>());
-        for (int i = 0; i < todayTasks.size(); i++) {
-            completed[i] = completedSet.contains(String.valueOf(i));
-        }
-        return completed;
-    }
-
-    private void saveCompletionState() {
-        Set<String> completedSet = new HashSet<>();
-        for (int i = 0; i < taskCompleted.length; i++) {
-            if (taskCompleted[i]) completedSet.add(String.valueOf(i));
-        }
-        prefs.edit().putStringSet(todayKey + "_completed", completedSet).apply();
     }
 
     private void renderTasks() {
         taskContainer.removeAllViews();
 
         for (int i = 0; i < todayTasks.size(); i++) {
-            final int index = i;
-            String[] task   = todayTasks.get(i);
-            String name     = task[0];
-            int minutes     = Integer.parseInt(task[1]);
-            boolean done    = taskCompleted[i];
+            String[] task = todayTasks.get(i);
+            String title = task[0];
+            String target = task[1];
+            String type = task[2];
+            String current = task[3];
+            boolean done = "1".equals(task[4]);
 
             View itemView = LayoutInflater.from(requireContext())
                     .inflate(R.layout.item_task, taskContainer, false);
@@ -192,8 +164,14 @@ public class DailyGoalSheetFragment extends BottomSheetDialogFragment {
             TextView tvDetail = itemView.findViewById(R.id.tvTaskDetail);
             ImageView ivCheck = itemView.findViewById(R.id.ivTaskCheck);
 
-            tvName.setText(name);
-            tvDetail.setText(minutes + " min " + (done ? "Completed" : "Remaining"));
+            tvName.setText(title);
+
+            if (type.equals("SPECIFIC_CHORD")) {
+                tvDetail.setText(done ? "Completed" : "Incomplete");
+            } else {
+                String unit = (type.contains("TIME")) ? " mins" : " chords";
+                tvDetail.setText(current + " / " + target + unit + (done ? " (Completed)" : ""));
+            }
 
             tvName.setTextColor(done
                     ? requireContext().getColor(R.color.accent_pink)
@@ -203,62 +181,48 @@ public class DailyGoalSheetFragment extends BottomSheetDialogFragment {
                     ? R.drawable.ic_check_done
                     : R.drawable.ic_check_empty);
 
-            itemView.setOnClickListener(v -> {
-                taskCompleted[index] = !taskCompleted[index];
-                saveCompletionState();
-                updateStreakIfAllDone();
-                renderTasks();
-                updateProgress();
-            });
-
+            // Clicks no longer hardcode manual overrides to remain synchronized with detection activities
             taskContainer.addView(itemView);
         }
     }
 
     private void updateProgress() {
-        int completedMinutes = 0;
-        for (int i = 0; i < taskCompleted.length; i++) {
-            if (taskCompleted[i]) {
-                completedMinutes += Integer.parseInt(todayTasks.get(i)[1]);
+        int totalTasks = todayTasks.size();
+        if (totalTasks == 0) return;
+
+        int completedCount = 0;
+        for (String[] task : todayTasks) {
+            if ("1".equals(task[4])) {
+                completedCount++;
             }
         }
 
-        int percent = totalGoalMinutes == 0 ? 0
-                : (int) ((completedMinutes / (float) totalGoalMinutes) * 100);
+        int percent = (int) ((completedCount / (float) totalTasks) * 100);
         percent = Math.min(100, percent);
 
         circularProgress.setProgress(percent);
         tvProgressPercent.setText(percent + " %");
-        tvMinutesPracticed.setText(completedMinutes + " / " + totalGoalMinutes + " minutes practiced");
-    }
+        tvMinutesPracticed.setText(completedCount + " / " + totalTasks + " goals completed");
 
-    private void updateStreakIfAllDone() {
-        boolean allDone = true;
-        for (boolean b : taskCompleted) {
-            if (!b) { allDone = false; break; }
-        }
-
-        if (allDone) {
-            String lastCompleted = prefs.getString("lastCompletedDay", "");
-            if (!lastCompleted.equals(todayKey)) {
-                int streak = prefs.getInt("currentStreak", 0) + 1;
-                int best   = Math.max(prefs.getInt("bestStreak", 0), streak);
-                prefs.edit()
-                        .putInt("currentStreak",    streak)
-                        .putInt("bestStreak",        best)
-                        .putString("lastCompletedDay", todayKey)
-                        .apply();
-
-                if (tvCurrentStreak != null) tvCurrentStreak.setText(String.valueOf(streak));
-                if (tvBestStreak != null) tvBestStreak.setText(String.valueOf(best));
-            }
+        if (completedCount == totalTasks) {
+            updateStreak();
         }
     }
 
-    private int getTotalMinutes() {
-        int total = 0;
-        for (String[] task : todayTasks) total += Integer.parseInt(task[1]);
-        return total;
+    private void updateStreak() {
+        String lastCompleted = prefs.getString("lastCompletedDay", "");
+        if (!lastCompleted.equals(todayKey)) {
+            int streak = prefs.getInt("currentStreak", 0) + 1;
+            int best   = Math.max(prefs.getInt("bestStreak", 0), streak);
+            prefs.edit()
+                    .putInt("currentStreak",    streak)
+                    .putInt("bestStreak",        best)
+                    .putString("lastCompletedDay", todayKey)
+                    .apply();
+
+            if (tvCurrentStreak != null) tvCurrentStreak.setText(String.valueOf(streak));
+            if (tvBestStreak != null) tvBestStreak.setText(String.valueOf(best));
+        }
     }
 
     private String getTodayKey() {

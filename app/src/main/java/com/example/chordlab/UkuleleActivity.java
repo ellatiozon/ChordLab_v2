@@ -36,7 +36,10 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.mediapipe.tasks.components.containers.NormalizedLandmark;
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarkerResult;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -63,6 +66,9 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
 
     private CountDownTimer flashcardTimer;
     private final long TIME_LIMIT_MS = 13000;
+
+    // ── TASK TRACKING TIMESTAMPS ──
+    private long sessionStartTime = 0;
 
     private final ActivityResultLauncher<String> requestPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
@@ -94,6 +100,46 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
         showSessionInstructions();
     }
 
+    @Override
+    protected void onStart() {
+        super.onStart();
+        // Record active session entry point time
+        sessionStartTime = System.currentTimeMillis();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        // Calculate accumulated minutes spent inside this activity viewport
+        if (sessionStartTime > 0) {
+            long totalSessionMs = System.currentTimeMillis() - sessionStartTime;
+            int totalSessionMins = (int) (totalSessionMs / 60000); // convert milliseconds to minutes safely
+
+            // Give a 1-minute grace value if spent over 30 seconds
+            if (totalSessionMs >= 30000 && totalSessionMins == 0) {
+                totalSessionMins = 1;
+            }
+
+            if (totalSessionMins > 0) {
+                SharedPreferences prefs = getSharedPreferences("UserSession", MODE_PRIVATE);
+                String username = prefs.getString("username", "");
+                if (!username.isEmpty()) {
+                    String todayKey = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+                    DatabaseHelper db = new DatabaseHelper(this);
+
+                    // Increment overall practicing bucket
+                    db.trackTaskProgress(username, todayKey, "TOTAL_TIME", totalSessionMins, null);
+
+                    // Increment specific Flashcard time metric if mode was active
+                    if ("FLASHCARDS".equalsIgnoreCase(sessionMode)) {
+                        db.trackTaskProgress(username, todayKey, "FLASHCARD_TIME", totalSessionMins, null);
+                    }
+                }
+            }
+            sessionStartTime = 0; // reset
+        }
+    }
+
     private void showSessionInstructions() {
         binding.instructionOverlay.setVisibility(View.VISIBLE);
         binding.instructionOverlay.setAlpha(1f);
@@ -117,7 +163,6 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
     }
 
     private void setupUI() {
-        binding.btnBack.setOnClickListener(v -> finish());
         binding.btnBack.setOnClickListener(v -> finish());
         binding.overlayView.setVisibility(View.GONE);
 
@@ -308,7 +353,17 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
             });
         } else {
             matchStartTime = 0;
-            runOnUiThread(() -> binding.overlayView.setResults(null));
+            runOnUiThread(() -> {
+                binding.overlayView.setResults(null);
+
+                if (!isChordLocked) {
+                    String target = ukuleleChords[currentChordIndex];
+                    binding.txtFeedback.setText("Looking for " + target + "...");
+                    binding.txtFeedback.setBackgroundColor(Color.parseColor("#E1F5FE"));
+                    binding.txtFeedback.setTextColor(Color.parseColor("#0277BD"));
+                    hasDinged = false;
+                }
+            });
         }
     }
 
@@ -319,6 +374,16 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
             DatabaseHelper db = new DatabaseHelper(this);
             db.addExp(username, 1);
             db.incrementChordsLearned(username);
+
+            // ── TASK UPDATING IMPLEMENTATION ──
+            String target = ukuleleChords[currentChordIndex];
+            String todayKey = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+
+            // 1. Progress generic correct chords total goal list
+            db.trackTaskProgress(username, todayKey, "CORRECT_CHORDS", 1, null);
+
+            // 2. Clear out specific chord assignment if matching the designated objective
+            db.trackTaskProgress(username, todayKey, "SPECIFIC_CHORD", 1, target);
         }
     }
 

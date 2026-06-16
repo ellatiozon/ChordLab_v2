@@ -42,7 +42,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
         android:layout_marginTop="24dp"
-        android:text="Current Instrument Progress"
+        android:text="Current Learning Progress"
         android:textColor="@color/accent_pink"
         android:textSize="16sp"
         android:textStyle="bold" />
@@ -81,55 +81,15 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_alignParentEnd="true"
-                android:text="67%"
+                android:text="67 mins"
                 android:textColor="@color/accent_pink"
                 android:textSize="14sp"
                 android:textStyle="bold" />
         </RelativeLayout>
 
-    <ProgressBar
-        android:id="@+id/totalPracticeMinutes"
-        style="?android:attr/progressBarStyleHorizontal"
-        android:layout_width="match_parent"
-        android:layout_height="10dp"
-        android:layout_marginTop="10dp"
-        android:layout_marginBottom="15dp"
-        android:max="100"
-        android:progress="67"
-        android:progressDrawable="@drawable/progress_bar_pink" />
-
-            <!-- ── Weekly Practice Days ── -->
-            <RelativeLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Weekly Practice Days"
-                    android:textColor="@color/accent_pink"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_alignParentEnd="true"
-                    android:text="67%"
-                    android:textColor="@color/accent_pink"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
-            </RelativeLayout>
-            <ProgressBar
-                android:id="@+id/weeklyPracticeDays"
-                style="?android:attr/progressBarStyleHorizontal"
-                android:layout_width="match_parent"
-                android:layout_height="10dp"
-                android:layout_marginTop="10dp"
-                android:layout_marginBottom="15dp"
-                android:max="100"
-                android:progress="67"
-                android:progressDrawable="@drawable/progress_bar_pink" />
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="16dp" />
 
             <!-- ── Chords learned ── -->
             <RelativeLayout
@@ -164,35 +124,7 @@
                 android:progress="67"
                 android:progressDrawable="@drawable/progress_bar_pink" />
 
-        </LinearLayout>
-    </androidx.cardview.widget.CardView>
 
-    <!-- Instruments Progress Title -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center_horizontal"
-        android:layout_marginTop="24dp"
-        android:text="Instruments Progress"
-        android:textColor="@color/accent_pink"
-        android:textSize="16sp"
-        android:textStyle="bold" />
-    <!-- ── Current Instrument Progress Card ── -->
-    <androidx.cardview.widget.CardView
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_marginEnd="16dp"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="16dp"
-        app:cardBackgroundColor="#FFFFFF"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="4dp">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="16dp">
 
             <!-- ── Instruments Explored ── -->
             <RelativeLayout
