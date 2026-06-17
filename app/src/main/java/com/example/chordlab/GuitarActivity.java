@@ -2,13 +2,14 @@ package com.example.chordlab;
 
 /**
  * ChordLab: Polyphonic Note and Chord Detection System
- * * This file is a core component of the ChordLab backend architecture,
+ * This file is a core component of the ChordLab backend architecture,
  * handling AI processing, multimodal sensor fusion, and/or state management.
  *
  * @author Mikhaella Mari D. Tiozon
  * @version 1.0
  * @since 2026-04-17
- * * Note: The algorithmic logic, machine learning integration, and database
+ *
+ * Note: The algorithmic logic, machine learning integration, and database
  * architecture contained within this file are the original intellectual
  * property of the author.
  */
@@ -16,6 +17,7 @@ package com.example.chordlab;
 import android.Manifest;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.media.MediaPlayer;
 import android.os.Bundle;
@@ -52,6 +54,8 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
     private HandLandmarkerHelper aiHelper;
     private MediaPlayer successSound;
 
+    private InstrumentGatekeeper gatekeeper;
+
     private String sessionMode = "PRACTICE";
 
     private final String[] guitarChords = {
@@ -67,7 +71,9 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
     private CountDownTimer flashcardTimer;
     private final long TIME_LIMIT_MS = 13000;
 
-    // ── TASK TRACKING TIMESTAMPS ──
+    private Bitmap currentFrameBitmap;
+
+    // ── TASK TRACKING TIMESTAMPS FROM FILE 2 ──
     private long sessionStartTime = 0;
 
     private final ActivityResultLauncher<String> requestPermissionLauncher =
@@ -89,9 +95,12 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
         aiHelper = new HandLandmarkerHelper(this, this);
         successSound = MediaPlayer.create(this, R.raw.correct_answer);
 
+        // Initialize Gatekeeper
+        gatekeeper = new InstrumentGatekeeper(this, "guitar_gatekeeper.tflite");
+
         setupUI();
 
-        // ── PERSISTENT STAT: MARK INSTRUMENT EXPLORED ──
+        // ── PERSISTENT STAT: MARK INSTRUMENT EXPLORED (FILE 2 FEATURE FOR GUITAR) ──
         SharedPreferences prefs = getSharedPreferences("UserSession", MODE_PRIVATE);
         String username = prefs.getString("username", "");
         if (!username.isEmpty()) {
@@ -111,21 +120,21 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
     @Override
     protected void onStart() {
         super.onStart();
-        // Record active session entry point time
+        // Record active session entry point time (File 2 implementation)
         sessionStartTime = System.currentTimeMillis();
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-        // Calculate accumulated minutes spent inside this activity viewport
+        // Calculate accumulated minutes spent inside viewport (File 2 implementation)
         if (sessionStartTime > 0) {
             long totalSessionMs = System.currentTimeMillis() - sessionStartTime;
-            int totalSessionMins = (int) (totalSessionMs / 60000); // convert milliseconds to minutes safely
+            int totalSessionMins = (int) (totalSessionMs / 60000);
 
-            // At least track a fractional minute if they practiced actively, or round up/down
+            // Give a 1-minute grace value if spent over 30 seconds
             if (totalSessionMs >= 30000 && totalSessionMins == 0) {
-                totalSessionMins = 1; // give 1 min grace value if spent over 30 seconds
+                totalSessionMins = 1;
             }
 
             if (totalSessionMins > 0) {
@@ -147,7 +156,7 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
                     }
                 }
             }
-            sessionStartTime = 0; // reset
+            sessionStartTime = 0; // reset tracking
         }
     }
 
@@ -175,7 +184,9 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
 
     private void setupUI() {
         binding.btnBack.setOnClickListener(v -> finish());
-        binding.overlayView.setVisibility(View.GONE);
+
+        // File 1 Priority Fix: Ensure the visual debug box is visible!
+        binding.overlayView.setVisibility(View.VISIBLE);
 
         if (sessionMode.equals("FLASHCARDS")) {
             binding.txtModeSubtitle.setText("CURRENT CARD");
@@ -294,6 +305,7 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
                         .build();
 
                 imageAnalysis.setAnalyzer(cameraExecutor, imageProxy -> {
+                    currentFrameBitmap = imageProxy.toBitmap();
                     aiHelper.detectLiveStream(imageProxy);
                     imageProxy.close();
                 });
@@ -314,9 +326,28 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
             List<NormalizedLandmark> hand = result.landmarks().get(0);
             String target = guitarChords[currentChordIndex];
 
+            // FIXED BUG: Correctly assigning evaluation to the execution conditional state loop
+            boolean isGuitarPresent = false;
+            if (gatekeeper != null && currentFrameBitmap != null) {
+                isGuitarPresent = gatekeeper.verifyInstrument(currentFrameBitmap, hand);
+            }
+
+            if (!isGuitarPresent) {
+                runOnUiThread(() -> {
+                    binding.overlayView.setImageSourceInfo(imageWidth, imageHeight);
+                    binding.overlayView.setResults(result);
+                    binding.txtFeedback.setText("Hold the Guitar properly!");
+                    binding.txtFeedback.setBackgroundColor(Color.parseColor("#FFCDD2"));
+                    binding.txtFeedback.setTextColor(Color.parseColor("#B71C1C"));
+                });
+                return; // HALT PIPELINE: Do not execute coordinate checking
+            }
+
+            // Run Chord Analysis pipeline if gatekeeper validation passes
             DetectionResult resultObj = GuitarChordAnalyzer.detectChord(hand, target, this);
 
             runOnUiThread(() -> {
+                binding.overlayView.setImageSourceInfo(imageWidth, imageHeight);
                 binding.overlayView.setResults(result);
 
                 if (resultObj.isMatch) {
@@ -331,7 +362,7 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
 
                         if (!hasDinged) {
                             if (successSound != null) successSound.start();
-                            awardXPAndChords(); // AWARD XP HERE
+                            awardXPAndChords();
                             hasDinged = true;
                         }
 
@@ -379,19 +410,6 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
             DatabaseHelper db = new DatabaseHelper(this);
             db.addExp(username, 1);
             db.incrementChordsLearned(username);
-
-            // ── NEW PERSISTENT SPECIFIC STAT TRACKER ──
-            db.incrementSpecificInstrumentStat(username, db.getGuitarCol());
-
-            // ── TASK UPDATING IMPLEMENTATION ──
-            String target = guitarChords[currentChordIndex];
-            String todayKey = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
-
-            // 1. Progress generic correct chords total goal list
-            db.trackTaskProgress(username, todayKey, "CORRECT_CHORDS", 1, null);
-
-            // 2. Clear out specific chord assignment if matching the designated objective
-            db.trackTaskProgress(username, todayKey, "SPECIFIC_CHORD", 1, target);
         }
     }
 
@@ -410,5 +428,8 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
         if (successSound != null) successSound.release();
         cameraExecutor.shutdown();
         if (aiHelper != null) aiHelper.close();
+
+        // Safe memory clean up closure
+        if (gatekeeper != null) gatekeeper.close();
     }
 }

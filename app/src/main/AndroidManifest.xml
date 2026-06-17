@@ -39,7 +39,7 @@
         <activity android:name=".SongPracticeActivity" android:exported="false" />
         <activity android:name=".ChordLibraryActivity" android:exported="false" />
         <activity
-            android:name=".VideoTranslatorActivity"
+            android:name=".PianoVideoTranslationActivity"
             android:exported="false"
             android:screenOrientation="portrait" />
 

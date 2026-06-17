@@ -122,7 +122,7 @@ public class MainActivity extends AppCompatActivity {
                 });
             } else if (cardId == R.id.cardVideoTranslator) {
                 flashAndNavigate((LinearLayout) cardView, () -> {
-                    startActivity(new Intent(this, VideoTranslatorActivity.class));
+                    startActivity(new Intent(this, PianoVideoTranslationActivity.class));
                 });
             }
         });

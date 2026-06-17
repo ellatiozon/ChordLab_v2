@@ -2,13 +2,14 @@ package com.example.chordlab;
 
 /**
  * ChordLab: Polyphonic Note and Chord Detection System
- * * This file is a core component of the ChordLab backend architecture,
+ * This file is a core component of the ChordLab backend architecture,
  * handling AI processing, multimodal sensor fusion, and/or state management.
  *
  * @author Mikhaella Mari D. Tiozon
  * @version 1.0
  * @since 2026-04-17
- * * Note: The algorithmic logic, machine learning integration, and database
+ *
+ * Note: The algorithmic logic, machine learning integration, and database
  * architecture contained within this file are the original intellectual
  * property of the author.
  */
@@ -16,6 +17,7 @@ package com.example.chordlab;
 import android.Manifest;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.media.MediaPlayer;
 import android.os.Bundle;
@@ -67,7 +69,11 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
     private CountDownTimer flashcardTimer;
     private final long TIME_LIMIT_MS = 13000;
 
-    // ── TASK TRACKING TIMESTAMPS ──
+    // Gatekeeper Tracking Properties
+    private InstrumentGatekeeper gatekeeper;
+    private Bitmap currentFrameBitmap;
+
+    // Task Tracking Timestamps
     private long sessionStartTime = 0;
 
     private final ActivityResultLauncher<String> requestPermissionLauncher =
@@ -87,11 +93,12 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
 
         cameraExecutor = Executors.newSingleThreadExecutor();
         aiHelper = new HandLandmarkerHelper(this, this);
+        gatekeeper = new InstrumentGatekeeper(this, "ukulele_gatekeeper.tflite");
         successSound = MediaPlayer.create(this, R.raw.correct_answer);
 
         setupUI();
 
-        // ── PERSISTENT STAT: MARK INSTRUMENT EXPLORED ──
+        // Persistent Stat Tracker: Mark Instrument Explored
         SharedPreferences prefs = getSharedPreferences("UserSession", MODE_PRIVATE);
         String username = prefs.getString("username", "");
         if (!username.isEmpty()) {
@@ -121,7 +128,7 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
         // Calculate accumulated minutes spent inside this activity viewport
         if (sessionStartTime > 0) {
             long totalSessionMs = System.currentTimeMillis() - sessionStartTime;
-            int totalSessionMins = (int) (totalSessionMs / 60000); // convert milliseconds to minutes safely
+            int totalSessionMins = (int) (totalSessionMs / 60000);
 
             // Give a 1-minute grace value if spent over 30 seconds
             if (totalSessionMs >= 30000 && totalSessionMins == 0) {
@@ -175,7 +182,7 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
 
     private void setupUI() {
         binding.btnBack.setOnClickListener(v -> finish());
-        binding.overlayView.setVisibility(View.GONE);
+        binding.overlayView.setVisibility(View.VISIBLE);
 
         if (sessionMode.equals("FLASHCARDS")) {
             binding.txtModeSubtitle.setText("CURRENT CARD");
@@ -300,6 +307,7 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
                         .build();
 
                 imageAnalysis.setAnalyzer(cameraExecutor, imageProxy -> {
+                    currentFrameBitmap = imageProxy.toBitmap();
                     aiHelper.detectLiveStream(imageProxy);
                     imageProxy.close();
                 });
@@ -320,9 +328,29 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
             List<NormalizedLandmark> hand = result.landmarks().get(0);
             String target = ukuleleChords[currentChordIndex];
 
+            // 1. Run the Gatekeeper Verification pipeline
+            boolean isPresent = false;
+            if (gatekeeper != null && currentFrameBitmap != null) {
+                isPresent = gatekeeper.verifyInstrument(currentFrameBitmap, hand);
+            }
+
+            if (!isPresent) {
+                runOnUiThread(() -> {
+                    binding.overlayView.setImageSourceInfo(imageWidth, imageHeight);
+                    binding.overlayView.setResults(result);
+
+                    binding.txtFeedback.setText("Hold the Ukulele properly!");
+                    binding.txtFeedback.setBackgroundColor(Color.parseColor("#FFCDD2"));
+                    binding.txtFeedback.setTextColor(Color.parseColor("#B71C1C"));
+                });
+                return; // Halt Pipeline execution: block Chord Verification
+            }
+
+            // 2. Run Chord Analysis pipeline if gatekeeper checks pass
             DetectionResult resultObj = ChordAnalyzer.detectChord(hand, target, "UKULELE", this);
 
             runOnUiThread(() -> {
+                binding.overlayView.setImageSourceInfo(imageWidth, imageHeight);
                 binding.overlayView.setResults(result);
 
                 if (resultObj.isMatch) {
@@ -337,7 +365,7 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
 
                         if (!hasDinged) {
                             if (successSound != null) successSound.start();
-                            awardXPAndChords(); // AWARD XP HERE
+                            awardXPAndChords();
                             hasDinged = true;
                         }
 
@@ -386,17 +414,17 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
             db.addExp(username, 1);
             db.incrementChordsLearned(username);
 
-            // ── NEW PERSISTENT SPECIFIC STAT TRACKER ──
+            // Persistent Analytics Hook for Specific Instruments
             db.incrementSpecificInstrumentStat(username, db.getUkuleleCol());
 
-            // ── TASK UPDATING IMPLEMENTATION ──
+            // Today's Task Objectives Progress Updating Tracker
             String target = ukuleleChords[currentChordIndex];
             String todayKey = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
 
             // 1. Progress generic correct chords total goal list
             db.trackTaskProgress(username, todayKey, "CORRECT_CHORDS", 1, null);
 
-            // 2. Clear out specific chord assignment if matching the designated objective
+            // 2. Clear out specific chord assignment if matching designated objective
             db.trackTaskProgress(username, todayKey, "SPECIFIC_CHORD", 1, target);
         }
     }
@@ -416,5 +444,6 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
         if (successSound != null) successSound.release();
         cameraExecutor.shutdown();
         if (aiHelper != null) aiHelper.close();
+        if (gatekeeper != null) gatekeeper.close();
     }
 }
