@@ -13,12 +13,16 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+
 public class DetailsActivity extends AppCompatActivity {
 
     // Backend Variables
     private String selectedInstrument = "Guitar";
     private String selectedGoal       = "20 mins";
     private DatabaseHelper myDb;
+    private FirebaseAuth mAuth; // Added Firebase Auth anchor
 
     // UI Elements
     private LinearLayout optionGuitar, optionUkulele, optionPiano;
@@ -29,7 +33,9 @@ public class DetailsActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_details);
 
+        // Initialize components
         myDb = new DatabaseHelper(this);
+        mAuth = FirebaseAuth.getInstance();
 
         // Bind Views
         optionGuitar  = findViewById(R.id.optionGuitar);
@@ -52,7 +58,6 @@ public class DetailsActivity extends AppCompatActivity {
         goal10.setOnClickListener(v -> selectGoal(goal10, "10 mins"));
         goal20.setOnClickListener(v -> selectGoal(goal20, "20 mins"));
         goal30.setOnClickListener(v -> selectGoal(goal30, "30 mins"));
-        // Make sure the string matches your exact XML text "1 hr"
         goal60.setOnClickListener(v -> selectGoal(goal60, "1 hour"));
 
         findViewById(R.id.btnBackDetails).setOnClickListener(v -> finish());
@@ -62,6 +67,14 @@ public class DetailsActivity extends AppCompatActivity {
     private void loadExistingUserData() {
         SharedPreferences prefs = getSharedPreferences("UserSession", MODE_PRIVATE);
         String username = prefs.getString("username", "");
+
+        // Online recovery validation fallback layer
+        if (username.isEmpty()) {
+            FirebaseUser currentUser = mAuth.getCurrentUser();
+            if (currentUser != null && currentUser.getEmail() != null) {
+                username = myDb.getUsernameByEmail(currentUser.getEmail());
+            }
+        }
 
         if (!username.isEmpty()) {
             Cursor cursor = myDb.getUserData(username);
@@ -99,7 +112,6 @@ public class DetailsActivity extends AppCompatActivity {
 
     // ── FOOLPROOF INSTRUMENT SELECTION ──
     private void selectInstrument(LinearLayout selected, String name) {
-        // 1. HARD RESET ALL
         optionGuitar.setBackgroundResource(R.drawable.bg_instrument_normal);
         updateInstrumentTextColor(optionGuitar, false);
 
@@ -109,7 +121,6 @@ public class DetailsActivity extends AppCompatActivity {
         optionPiano.setBackgroundResource(R.drawable.bg_instrument_normal);
         updateInstrumentTextColor(optionPiano, false);
 
-        // 2. HIGHLIGHT SELECTED
         selected.setBackgroundResource(R.drawable.bg_instrument_selected);
         updateInstrumentTextColor(selected, true);
 
@@ -134,7 +145,6 @@ public class DetailsActivity extends AppCompatActivity {
 
     // ── FOOLPROOF GOAL SELECTION ──
     private void selectGoal(Button selected, String goal) {
-        // 1. HARD RESET ALL to high-contrast unselected state
         goal10.setBackgroundResource(R.drawable.bg_sig_normal);
         goal10.setTextColor(Color.parseColor("#424242"));
 
@@ -147,7 +157,6 @@ public class DetailsActivity extends AppCompatActivity {
         goal60.setBackgroundResource(R.drawable.bg_sig_normal);
         goal60.setTextColor(Color.parseColor("#424242"));
 
-        // 2. HIGHLIGHT SELECTED
         selected.setBackgroundResource(R.drawable.bg_sig_selected);
         selected.setTextColor(Color.WHITE);
 
@@ -158,16 +167,25 @@ public class DetailsActivity extends AppCompatActivity {
         SharedPreferences prefs = getSharedPreferences("UserSession", MODE_PRIVATE);
         String currentUsername = prefs.getString("username", "");
 
+        // Explicit structural fallback verification
+        if (currentUsername.isEmpty()) {
+            FirebaseUser currentUser = mAuth.getCurrentUser();
+            if (currentUser != null && currentUser.getEmail() != null) {
+                currentUsername = myDb.getUsernameByEmail(currentUser.getEmail());
+            }
+        }
+
         if (currentUsername.isEmpty()) {
             Toast.makeText(this, "Error: No user session found", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // Save to SQLite
+        // Save to Local SQLite Setup Profile
         boolean isUpdated = myDb.updateUserDetails(currentUsername, selectedInstrument, selectedGoal);
 
         if (isUpdated) {
             prefs.edit()
+                    .putString("username", currentUsername)
                     .putString("instrument", selectedInstrument)
                     .putString("dailyGoal",  selectedGoal)
                     .putBoolean("detailsComplete", true)

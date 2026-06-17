@@ -13,6 +13,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
+import com.google.firebase.auth.FirebaseAuth; // Added Firebase Auth import
 
 public class ProfileSheetFragment extends BottomSheetDialogFragment {
 
@@ -28,7 +29,6 @@ public class ProfileSheetFragment extends BottomSheetDialogFragment {
         return inflater.inflate(R.layout.fragment_profile_sheet, container, false);
     }
 
-    // ─── REPLACE EVERYTHING FROM HERE DOWN TO THE END OF THE FILE ───
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
@@ -83,12 +83,14 @@ public class ProfileSheetFragment extends BottomSheetDialogFragment {
             dailyGoalSheet.show(getParentFragmentManager(), "daily_goal");
         });
 
-        // ── Log Out (Cleaned up to use your SessionManager properly) ──
+        // ── Log Out (Updated to include Firebase Sign-Out) ──
         view.findViewById(R.id.btnLogOut).setOnClickListener(v -> {
-            // Clear the SessionManager session ("ChordLabSession" file)
-            sessionManager.clearSession();
+            // ─── CRITICAL ONLINE FOCUS ADDITION ───
+            // This drops the current user authentication status token from memory
+            FirebaseAuth.getInstance().signOut();
 
-            // Also clear legacy file if you stored data there
+            // Clear local cached references
+            sessionManager.clearSession();
             legacyPrefs.edit().clear().apply();
 
             dismiss();
