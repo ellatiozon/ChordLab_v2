@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "330159279650",
+    "firebase_url": "https://project-chord-lab-id-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "project-chord-lab-id",
+    "storage_bucket": "project-chord-lab-id.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:330159279650:android:766d424b6028cb770b447b",
+        "android_client_info": {
+          "package_name": "com.example.chordlab"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAfsWD-7b4ltwKYlPs56_fXjwQpqyLtd68"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
