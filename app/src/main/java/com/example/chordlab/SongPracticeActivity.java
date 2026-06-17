@@ -172,13 +172,50 @@ public class SongPracticeActivity extends AppCompatActivity {
 
     // ─── AUTOMATIC IMAGE POPUP DIALOG ───────────────────────────────────────
     private void showChordImageDialog(String chordName) {
-        String cleanChord = chordName.toLowerCase().replace("#", "_sharp");
         String cleanInstrument = currentInstrument.toLowerCase();
-        String imageName = cleanInstrument + "_" + cleanChord;
+
+        // 1. CHORD PARSER: Break down strings like "C#m" into Note and Quality
+        String note = "C";
+        String quality = "Major";
+        String pianoMode = "Chord";
+
+        String parsed = chordName.trim();
+        if (parsed.length() > 0) {
+            // Extract the Root letter (e.g., "C", "D")
+            note = String.valueOf(parsed.charAt(0)).toUpperCase();
+
+            // Check for sharps or flats right after the root letter
+            if (parsed.length() > 1) {
+                char accidental = parsed.charAt(1);
+                if (accidental == '#') {
+                    note += "#";
+                } else if (accidental == 'b') {
+                    // Safe Translation: If a song specifies a flat, map it to our Sharp system
+                    switch (note) {
+                        case "D": note = "C#"; break;
+                        case "E": note = "D#"; break;
+                        case "G": note = "F#"; break;
+                        case "A": note = "G#"; break;
+                        case "B": note = "A#"; break;
+                    }
+                }
+            }
+        }
+
+        // Determine Piano Mode & Quality
+        if (parsed.toLowerCase().contains("note")) {
+            pianoMode = "Note";
+        } else if (parsed.toLowerCase().contains("m") && !parsed.toLowerCase().contains("maj")) {
+            quality = "Minor";
+        }
+
+        // 2. Fetch exact asset name mapped to your custom convention
+        String imageName = getResourceName(cleanInstrument, note, quality, pianoMode);
+
         int imageResId = getResources().getIdentifier(imageName, "drawable", getPackageName());
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle(currentInstrument + " - Chord " + chordName);
+        builder.setTitle(currentInstrument + " - " + chordName);
 
         if (imageResId != 0) {
             ImageView imageView = new ImageView(this);
@@ -191,6 +228,71 @@ public class SongPracticeActivity extends AppCompatActivity {
 
         builder.setPositiveButton("Got it", null);
         builder.show();
+    }
+
+    // ─── CUSTOM ASSET NAMING MAPPER (Same as ChordLibrary) ──────────────────
+    private String getResourceName(String instrument, String note, String quality, String pianoMode) {
+        String cleanQuality = quality.toLowerCase(); // "major" or "minor"
+
+        if (instrument.equals("piano")) {
+            if (pianoMode.equals("Note")) {
+                switch (note) {
+                    case "C":  return "c_note";
+                    case "C#": return "csharp_dflat_note";
+                    case "D":  return "d_note";
+                    case "D#": return "dsharp_eflat_note";
+                    case "E":  return "e_note";
+                    case "F":  return "f_note";
+                    case "F#": return "fsharp_gflat_note";
+                    case "G":  return "g_note";
+                    case "G#": return "gsharp_a_flat"; // Exact string match
+                    case "A":  return "a_note";
+                    case "A#": return "asharp_bflat_note"; // Exact string match
+                    case "B":  return "b_note";
+                }
+            } else { // Piano Chord Mode
+                switch (note) {
+                    case "C":  return "c_" + cleanQuality;
+                    case "C#": return "c_sharp_" + cleanQuality;
+                    case "D":  return "d_" + cleanQuality;
+                    // Fallback for songs that might include a D# chord notation
+                    case "D#": return "d_sharp_" + cleanQuality;
+                    case "E":  return "e_" + cleanQuality;
+                    case "F":  return "f_" + cleanQuality;
+                    case "F#": return "f_sharp_" + cleanQuality;
+                    case "G":  return "g_" + cleanQuality;
+                    case "G#": return "a_flat_" + cleanQuality;
+                    case "A":  return "a_" + cleanQuality;
+                    case "A#": return "b_flat_" + cleanQuality;
+                    case "B":  return "b_" + cleanQuality;
+                }
+            }
+        }
+
+        // Mapping specifically for Guitar and Ukulele formulas
+        String mappedNote = "";
+        switch (note) {
+            case "C":  mappedNote = "c"; break;
+            case "C#": mappedNote = "c_sharp"; break;
+            case "D":  mappedNote = "d"; break;
+            case "D#": mappedNote = "d_sharp"; break;
+            case "E":  mappedNote = "e"; break;
+            case "F":  mappedNote = "f"; break;
+            case "F#": mappedNote = "f_sharp"; break;
+            case "G":  mappedNote = "g"; break;
+            case "G#": mappedNote = "g_sharp"; break;
+            case "A":  mappedNote = "a"; break;
+            case "A#": mappedNote = "a_sharp"; break;
+            case "B":  mappedNote = "b"; break;
+        }
+
+        if (instrument.equals("guitar")) {
+            return mappedNote + "_" + cleanQuality + "_guitar";
+        } else if (instrument.equals("ukulele")) {
+            return mappedNote + "_" + cleanQuality + "_uku";
+        }
+
+        return "";
     }
 
     @Override

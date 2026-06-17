@@ -10,6 +10,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
+import android.view.animation.LinearInterpolator;
 import android.widget.Button;
 import android.widget.SeekBar;
 import android.widget.TextView;
@@ -41,6 +42,10 @@ public class MetronomeActivity extends AppCompatActivity {
     private Button btnUploadFile;
     private Button btnSig44, btnSig34, btnSig68, btnSig24;
     private View[] beatViews;
+
+    // ── PENDULUM FIELDS ─────────────────────────────────────────────────────
+    private View pendulumDot;
+    private boolean pendulumGoingRight = true;
 
     // ── State ───────────────────────────────────────────────────────────────
     private int bpm = 120;
@@ -115,11 +120,16 @@ public class MetronomeActivity extends AppCompatActivity {
         btnSig68      = findViewById(R.id.btnSig68);
         btnSig24      = findViewById(R.id.btnSig24);
 
+        pendulumDot   = findViewById(R.id.pendulumDot);
+
+        // Extended to hold all 6 beats for 6/8 timing
         beatViews = new View[]{
                 findViewById(R.id.beat1),
                 findViewById(R.id.beat2),
                 findViewById(R.id.beat3),
-                findViewById(R.id.beat4)
+                findViewById(R.id.beat4),
+                findViewById(R.id.beat5),
+                findViewById(R.id.beat6)
         };
     }
 
@@ -205,6 +215,7 @@ public class MetronomeActivity extends AppCompatActivity {
         btnStart.setText("▶  START");
         currentBeat = 0;
         updateBeatIndicators();
+        resetPendulum();
     }
 
     private void restartTick() {
@@ -227,7 +238,15 @@ public class MetronomeActivity extends AppCompatActivity {
             while (audioRunning && isRunning) {
                 long intervalMs = 60_000L / bpm;
 
-                playClick(currentBeat == 0);
+                // Smart Audio Frequencies for different accents
+                double frequency = 1200.0; // Normal beat
+                if (currentBeat == 0) {
+                    frequency = 1800.0; // Primary accent (Beat 1)
+                } else if (timeSignature == 6 && currentBeat == 3) {
+                    frequency = 1500.0; // Secondary accent (Beat 4 in 6/8 time)
+                }
+
+                playClick(frequency);
 
                 final int displayBeat = currentBeat;
                 handler.post(() -> {
@@ -246,10 +265,9 @@ public class MetronomeActivity extends AppCompatActivity {
         audioThread.start();
     }
 
-    private void playClick(boolean accent) {
+    private void playClick(double frequency) {
         int durationMs   = 30;
         int numSamples   = (SAMPLE_RATE * durationMs) / 1000;
-        double frequency = accent ? 1800.0 : 1200.0;
 
         short[] samples = new short[numSamples];
         for (int i = 0; i < numSamples; i++) {
@@ -288,8 +306,11 @@ public class MetronomeActivity extends AppCompatActivity {
         }, durationMs + 50);
     }
 
-    // ── Beat indicator lights ────────────────────────────────────────────────
+    // ── Beat indicator lights & Pendulum ─────────────────────────────────────
     private void highlightBeat(int beat) {
+        // Trigger smooth pendulum animation
+        animatePendulum();
+
         for (int i = 0; i < beatViews.length; i++) {
             if (i < timeSignature) {
                 beatViews[i].setVisibility(View.VISIBLE);
@@ -298,7 +319,7 @@ public class MetronomeActivity extends AppCompatActivity {
                                 ? R.drawable.metronome_bg_beat_active
                                 : R.drawable.metronome_bg_beat_inactive);
             } else {
-                beatViews[i].setVisibility(View.INVISIBLE);
+                beatViews[i].setVisibility(View.GONE); // Use GONE so linear layout adjusts spacing
             }
         }
     }
@@ -309,9 +330,45 @@ public class MetronomeActivity extends AppCompatActivity {
                 beatViews[i].setVisibility(View.VISIBLE);
                 beatViews[i].setBackgroundResource(R.drawable.metronome_bg_beat_inactive);
             } else {
-                beatViews[i].setVisibility(View.INVISIBLE);
+                beatViews[i].setVisibility(View.GONE);
             }
         }
+    }
+
+    // ── Pendulum Animation Logic ─────────────────────────────────────────────
+    private void animatePendulum() {
+        if (pendulumDot == null) return;
+
+        pendulumDot.post(() -> {
+            int parentWidth = ((android.view.View) pendulumDot.getParent()).getWidth();
+            int dotWidth    = pendulumDot.getWidth();
+
+            if (parentWidth == 0) return; // Prevent layout issues before fully drawn
+
+            float maxTransX = parentWidth - dotWidth;
+
+            float targetX = pendulumGoingRight ? maxTransX : 0f;
+            pendulumGoingRight = !pendulumGoingRight;
+
+            long beatMs = 60_000L / bpm;
+
+            pendulumDot.animate()
+                    .translationX(targetX)
+                    .setDuration(beatMs)
+                    .setInterpolator(new LinearInterpolator()) // Keeps the sweep smooth
+                    .start();
+        });
+    }
+
+    private void resetPendulum() {
+        if (pendulumDot == null) return;
+        pendulumDot.post(() -> {
+            pendulumGoingRight = true;
+            pendulumDot.animate()
+                    .translationX(0f)
+                    .setDuration(200)
+                    .start();
+        });
     }
 
     // ── Tap Tempo ────────────────────────────────────────────────────────────
@@ -505,7 +562,7 @@ public class MetronomeActivity extends AppCompatActivity {
                     Thread.sleep(5);
                     continue;
                 } else if (outputIndex == android.media.MediaCodec.INFO_OUTPUT_FORMAT_CHANGED ||
-                           outputIndex == android.media.MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
+                        outputIndex == android.media.MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
                     // Runtime Fix: Keep the loop moving forward safely on structural audio frame shifts
                     continue;
                 } else if (outputIndex >= 0) {
