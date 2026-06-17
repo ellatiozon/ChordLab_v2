@@ -8,9 +8,6 @@ package com.example.chordlab;
  * @author Mikhaella Mari D. Tiozon
  * @version 1.0
  * @since 2026-04-17
- * * Note: The algorithmic logic, machine learning integration, and database
- * architecture contained within this file are the original intellectual
- * property of the author.
  */
 
 import android.Manifest;
@@ -62,10 +59,12 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
     private boolean isChordLocked = false;
     private boolean hasDinged = false;
 
+    // ── EVENT-DRIVEN SWITCH ──
+    private boolean isInstrumentVerifiedForThisChord = false;
+
     private CountDownTimer flashcardTimer;
     private final long TIME_LIMIT_MS = 13000;
 
-    // Add these with your other variables at the top
     private InstrumentGatekeeper gatekeeper;
     private Bitmap currentFrameBitmap;
 
@@ -86,7 +85,6 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
 
         cameraExecutor = Executors.newSingleThreadExecutor();
         aiHelper = new HandLandmarkerHelper(this, this);
-        // Assuming you name the file ukulele_gatekeeper.tflite in your assets folder
         gatekeeper = new InstrumentGatekeeper(this, "ukulele_gatekeeper.tflite");
         successSound = MediaPlayer.create(this, R.raw.correct_answer);
 
@@ -124,7 +122,6 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
     }
 
     private void setupUI() {
-        binding.btnBack.setOnClickListener(v -> finish());
         binding.btnBack.setOnClickListener(v -> finish());
         binding.overlayView.setVisibility(View.VISIBLE);
 
@@ -207,6 +204,9 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
         isChordLocked = false;
         matchStartTime = 0;
         hasDinged = false;
+
+        // ── WAKE UP THE GATEKEEPER FOR THE NEW CHORD ──
+        isInstrumentVerifiedForThisChord = false;
     }
 
     private void loadRandomFlashcard() {
@@ -274,30 +274,49 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
             List<NormalizedLandmark> hand = result.landmarks().get(0);
             String target = ukuleleChords[currentChordIndex];
 
-            // 1. RUN THE GATEKEEPER FIRST
-            boolean isPresent = gatekeeper.verifyInstrument(currentFrameBitmap, hand);
+            // ── 1. EVENT-DRIVEN GATEKEEPER LOGIC ──
+            if (!isInstrumentVerifiedForThisChord) {
+                boolean isPresent = false;
+                android.graphics.RectF currentBox = null;
 
-            if (!isPresent) {
-                runOnUiThread(() -> {
-                    // Tell it the screen size and pass the active hand points!
-                    binding.overlayView.setImageSourceInfo(imageWidth, imageHeight);
-                    binding.overlayView.setResults(result);
+                if (gatekeeper != null && currentFrameBitmap != null) {
+                    isPresent = gatekeeper.verifyInstrument(currentFrameBitmap, hand);
+                    currentBox = gatekeeper.getBoundingBox();
+                }
 
-                    binding.txtFeedback.setText("Hold the Ukulele properly!");
-                    binding.txtFeedback.setBackgroundColor(Color.parseColor("#FFCDD2"));
-                    binding.txtFeedback.setTextColor(Color.parseColor("#B71C1C"));
-                });
-                return;
+                final android.graphics.RectF finalBox = currentBox;
+
+                if (!isPresent) {
+                    runOnUiThread(() -> {
+                        binding.overlayView.setImageSourceInfo(imageWidth, imageHeight);
+                        binding.overlayView.setResults(result);
+                        binding.overlayView.setGatekeeperBox(finalBox); // DRAW THE RED BOX
+
+                        binding.txtFeedback.setText("Show your Ukulele first!");
+                        binding.txtFeedback.setBackgroundColor(Color.parseColor("#FFCDD2"));
+                        binding.txtFeedback.setTextColor(Color.parseColor("#B71C1C"));
+                    });
+                    return; // Halt Pipeline execution
+                } else {
+                    // Instrument found! Lock it in for the rest of this chord.
+                    isInstrumentVerifiedForThisChord = true;
+
+                    runOnUiThread(() -> {
+                        // ERASE THE RED BOX (They successfully gripped the fretboard)
+                        binding.overlayView.setGatekeeperBox(null);
+                    });
+                }
             }
 
-            // If it passed the gatekeeper, proceed to chord detection:
+            // ── 2. RUN CHORD ANALYSIS ──
             DetectionResult resultObj = ChordAnalyzer.detectChord(hand, target, "UKULELE", this);
 
             runOnUiThread(() -> {
-                // ADD THIS LINE HERE: This scales the landmarks to your screen!
                 binding.overlayView.setImageSourceInfo(imageWidth, imageHeight);
-
                 binding.overlayView.setResults(result);
+
+                // Ensure red box stays hidden while analyzing chords
+                binding.overlayView.setGatekeeperBox(null);
 
                 if (resultObj.isMatch) {
                     if (matchStartTime == 0) matchStartTime = System.currentTimeMillis();
@@ -338,10 +357,23 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
             });
         } else {
             matchStartTime = 0;
-            runOnUiThread(() -> binding.overlayView.setResults(null));
+            runOnUiThread(() -> {
+                binding.overlayView.setResults(null);
+                // Erase box if user puts their hand down entirely
+                binding.overlayView.setGatekeeperBox(null);
+
+                if (!isChordLocked) {
+                    String target = ukuleleChords[currentChordIndex];
+                    binding.txtFeedback.setText("Looking for " + target + "...");
+                    binding.txtFeedback.setBackgroundColor(Color.parseColor("#E1F5FE"));
+                    binding.txtFeedback.setTextColor(Color.parseColor("#0277BD"));
+                    hasDinged = false;
+                }
+            });
         }
     }
 
+    // ── ORIGINAL, CLEAN DATABASE METHOD ──
     private void awardXPAndChords() {
         SharedPreferences prefs = getSharedPreferences("UserSession", MODE_PRIVATE);
         String username = prefs.getString("username", "");
@@ -367,7 +399,6 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
         if (successSound != null) successSound.release();
         cameraExecutor.shutdown();
         if (aiHelper != null) aiHelper.close();
-        // Add this below aiHelper.close();
         if (gatekeeper != null) gatekeeper.close();
     }
 }

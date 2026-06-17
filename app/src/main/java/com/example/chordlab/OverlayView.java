@@ -17,6 +17,7 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.RectF;
 import android.util.AttributeSet;
 import android.view.View;
 import androidx.annotation.Nullable;
@@ -32,8 +33,10 @@ public class OverlayView extends View {
 
     private Paint pointPaint;
     private Paint linePaint;
-
     private Paint boundingBoxPaint;
+
+    // --- NEW: Stores the bounding box from the Gatekeeper ---
+    private RectF gatekeeperBox = null;
 
     // Scaling variables
     private float scaleFactor = 1f;
@@ -48,6 +51,12 @@ public class OverlayView extends View {
     public void setImageSourceInfo(int width, int height) {
         this.imageWidth = width;
         this.imageHeight = height;
+    }
+
+    // --- NEW: Setter method to receive the box from your Activities ---
+    public void setGatekeeperBox(RectF box) {
+        this.gatekeeperBox = box;
+        invalidate(); // Forces the view to redraw immediately
     }
 
     private void initPaints() {
@@ -77,11 +86,11 @@ public class OverlayView extends View {
     @Override
     public void draw(Canvas canvas) {
         super.draw(canvas);
-        if (results == null || results.landmarks().isEmpty()) return;
 
         int viewWidth = getWidth();
         int viewHeight = getHeight();
 
+        // Calculate scaling regardless of hand presence so the box can draw independently if needed
         scaleFactor = Math.max((float) viewWidth / imageWidth, (float) viewHeight / imageHeight);
         float scaledWidth = imageWidth * scaleFactor;
         float scaledHeight = imageHeight * scaleFactor;
@@ -89,13 +98,30 @@ public class OverlayView extends View {
         leftOffset = (viewWidth - scaledWidth) / 2f;
         topOffset = (viewHeight - scaledHeight) / 2f;
 
+        // 1. DRAW THE DYNAMIC BOUNDING BOX (THE GATEKEEPER'S VIEW)
+        if (gatekeeperBox != null) {
+            // Apply canvas scaling and handle front-camera mirroring mapping
+            float left = getCanvasX(gatekeeperBox.right);
+            float right = getCanvasX(gatekeeperBox.left);
+            float top = getCanvasY(gatekeeperBox.top);
+            float bottom = getCanvasY(gatekeeperBox.bottom);
+
+            // drawRect requires left to be smaller than right
+            canvas.drawRect(
+                    Math.min(left, right),
+                    top,
+                    Math.max(left, right),
+                    bottom,
+                    boundingBoxPaint
+            );
+        }
+
+        // 2. DRAW SKELETON AND POINTS
+        if (results == null || results.landmarks().isEmpty()) return;
+
         List<NormalizedLandmark> handLandmarks = results.landmarks().get(0);
 
         if (handLandmarks.size() >= 21) {
-            // 1. DRAW THE DYNAMIC BOUNDING BOX (THE GATEKEEPER'S VIEW)
-            drawGatekeeperBox(canvas, handLandmarks);
-
-            // 2. DRAW SKELETON AND POINTS
             drawSkeleton(canvas, handLandmarks);
             for (NormalizedLandmark landmark : handLandmarks) {
                 canvas.drawCircle(
@@ -108,42 +134,8 @@ public class OverlayView extends View {
         }
     }
 
-    private void drawGatekeeperBox(Canvas canvas, List<NormalizedLandmark> handLandmarks) {
-        float minX = 1.0f, maxX = 0.0f, minY = 1.0f, maxY = 0.0f;
-
-        for (NormalizedLandmark landmark : handLandmarks) {
-            if (landmark.x() < minX) minX = landmark.x();
-            if (landmark.x() > maxX) maxX = landmark.x();
-            if (landmark.y() < minY) minY = landmark.y();
-            if (landmark.y() > maxY) maxY = landmark.y();
-        }
-
-        float handWidth = maxX - minX;
-        float handHeight = maxY - minY;
-
-        // ASYMMETRICAL PADDING
-        float xPadding = handWidth * 0.50f;
-        float yBottomPadding = handHeight * 0.50f;
-        float yTopPadding = handHeight * 2.50f;
-
-        // Apply asymmetrical boundaries
-        float boxMinX = Math.max(0, minX - xPadding);
-        float boxMaxX = Math.min(1, maxX + xPadding);
-        float boxMinY = Math.max(0, minY - yTopPadding); // Uses yTopPadding
-        float boxMaxY = Math.min(1, maxY + yBottomPadding); // Uses yBottomPadding
-
-        float left = getCanvasX(boxMaxX);
-        float right = getCanvasX(boxMinX);
-        float top = getCanvasY(boxMinY);
-        float bottom = getCanvasY(boxMaxY);
-
-        canvas.drawLine(left, top, right, top, boundingBoxPaint);
-        canvas.drawLine(left, bottom, right, bottom, boundingBoxPaint);
-        canvas.drawLine(left, top, left, bottom, boundingBoxPaint);
-        canvas.drawLine(right, top, right, bottom, boundingBoxPaint);
-    }
-
     private float getCanvasX(float normalizedX) {
+        // (1f - normalizedX) handles the front-camera mirror effect
         return ((1f - normalizedX) * imageWidth * scaleFactor) + leftOffset;
     }
 

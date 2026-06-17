@@ -22,12 +22,14 @@ public class InstrumentGatekeeper {
     private Interpreter tflite;
     private ImageProcessor imageProcessor;
 
-    // NEW: We now pass the specific model filename when we create the Gatekeeper
+    // UI Tracker
+    private android.graphics.RectF lastBoundingBox = null;
+
     public InstrumentGatekeeper(Context context, String modelFilename) {
         try {
             MappedByteBuffer tfliteModel = FileUtil.loadMappedFile(context, modelFilename);
             Interpreter.Options options = new Interpreter.Options();
-            options.setNumThreads(2);
+            options.setNumThreads(2); // Keep it lightweight
             tflite = new Interpreter(tfliteModel, options);
 
             imageProcessor = new ImageProcessor.Builder()
@@ -42,6 +44,7 @@ public class InstrumentGatekeeper {
     public boolean verifyInstrument(Bitmap fullFrame, List<NormalizedLandmark> handLandmarks) {
         if (tflite == null || fullFrame == null) return false;
 
+        // 1. FAST MATH: Find the hand boundaries
         float minX = 1.0f, maxX = 0.0f, minY = 1.0f, maxY = 0.0f;
         for (NormalizedLandmark landmark : handLandmarks) {
             if (landmark.x() < minX) minX = landmark.x();
@@ -53,37 +56,50 @@ public class InstrumentGatekeeper {
         float handWidth = maxX - minX;
         float handHeight = maxY - minY;
 
-        // Using our new Asymmetrical "Peg Hunter" math!
+        // 2. ASYMMETRICAL PEG HUNTER: Look UP the fretboard
         float xPadding = handWidth * 0.50f;
         float yBottomPadding = handHeight * 0.50f;
         float yTopPadding = handHeight * 2.50f;
 
+        float normStartX = Math.max(0, minX - xPadding);
+        float normStartY = Math.max(0, minY - yTopPadding);
+        float normEndX = Math.min(1, maxX + xPadding);
+        float normEndY = Math.min(1, maxY + yBottomPadding);
+
+        // Update the visual box immediately for the UI Overlay
+        lastBoundingBox = new android.graphics.RectF(normStartX, normStartY, normEndX, normEndY);
+
+        // 3. PIXEL MAPPING: Convert to screen coordinates
         int width = fullFrame.getWidth();
         int height = fullFrame.getHeight();
 
-        int startX = (int) (Math.max(0, minX - xPadding) * width);
-        int startY = (int) (Math.max(0, minY - yTopPadding) * height);
-        int endX = (int) (Math.min(1, maxX + xPadding) * width);
-        int endY = (int) (Math.min(1, maxY + yBottomPadding) * height);
+        int startX = (int) (normStartX * width);
+        int startY = (int) (normStartY * height);
+        int endX = (int) (normEndX * width);
+        int endY = (int) (normEndY * height);
 
         int cropWidth = endX - startX;
         int cropHeight = endY - startY;
 
         if (cropWidth <= 0 || cropHeight <= 0) return false;
 
+        // 4. HEAVY AI (Only executes because the Activity explicitly asked it to)
         Bitmap croppedBitmap = Bitmap.createBitmap(fullFrame, startX, startY, cropWidth, cropHeight);
         TensorImage tensorImage = new TensorImage(DataType.FLOAT32);
         tensorImage.load(croppedBitmap);
         tensorImage = imageProcessor.process(tensorImage);
 
-        // REVERTED TO 2 CLASSES: Background (0) and Target Instrument (1)
         TensorBuffer probabilityBuffer = TensorBuffer.createFixedSize(new int[]{1, 2}, DataType.FLOAT32);
         tflite.run(tensorImage.getBuffer(), probabilityBuffer.getBuffer());
 
         float[] probabilities = probabilityBuffer.getFloatArray();
 
-        // Index 1 is whatever instrument this specific model was trained on
+        // Target Instrument (Index 1) must clear the strict 60% confidence gate
         return probabilities[1] > 0.60f;
+    }
+
+    public android.graphics.RectF getBoundingBox() {
+        return lastBoundingBox;
     }
 
     public void close() {
