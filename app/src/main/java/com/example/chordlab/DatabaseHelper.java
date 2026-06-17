@@ -134,6 +134,20 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return email;
     }
 
+    // ─── ADDED HELPER: FETCH USERNAME VIA EMAIL KEY ───
+    public String getUsernameByEmail(String email) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        String username = "";
+        Cursor cursor = db.rawQuery("SELECT " + COL_2 + " FROM " + TABLE_NAME + " WHERE " + COL_3 + "=?", new String[]{email});
+        if (cursor != null) {
+            if (cursor.moveToFirst()) {
+                username = cursor.getString(0);
+            }
+            cursor.close();
+        }
+        return username;
+    }
+
     public Cursor getUserData(String username) {
         SQLiteDatabase db = this.getReadableDatabase();
         return db.rawQuery("SELECT * FROM " + TABLE_NAME + " WHERE USERNAME=?", new String[]{username});

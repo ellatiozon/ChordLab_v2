@@ -10,9 +10,13 @@ import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.firebase.auth.FirebaseAuth;
+
 public class LoginActivity extends AppCompatActivity {
 
     DatabaseHelper myDb;
+    private FirebaseAuth mAuth; // Firebase Authentication Reference
+
     EditText etUser, etPass;
     Button btnSignIn;
     SessionManager session;
@@ -24,10 +28,13 @@ public class LoginActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
 
+        // Initialize Firebase Auth
+        mAuth = FirebaseAuth.getInstance();
+        myDb   = new DatabaseHelper(this);
         session = new SessionManager(this);
 
         // 1. Auto-login check: Go straight to Dashboard if already logged in
-        if (session.isLoggedIn()) {
+        if (session.isLoggedIn() || mAuth.getCurrentUser() != null) {
             goToDashboard();
             return;
         }
@@ -36,53 +43,81 @@ public class LoginActivity extends AppCompatActivity {
         tvSignUp.setOnClickListener(v ->
                 startActivity(new Intent(LoginActivity.this, RegistrationActivity.class)));
 
-        myDb      = new DatabaseHelper(this);
         etUser    = findViewById(R.id.et_login_username);
         etPass    = findViewById(R.id.et_login_password);
         btnSignIn = findViewById(R.id.btnSignIn);
 
         btnSignIn.setOnClickListener(v -> {
-            String user = etUser.getText().toString().trim();
-            String pass = etPass.getText().toString().trim();
+            String inputUserOrEmail = etUser.getText().toString().trim();
+            String pass             = etPass.getText().toString().trim();
 
-            if (user.isEmpty() || pass.isEmpty()) {
+            if (inputUserOrEmail.isEmpty() || pass.isEmpty()) {
                 Toast.makeText(this, "Please fill in all fields", Toast.LENGTH_SHORT).show();
                 return;
             }
 
-            if (myDb.checkUser(user, pass)) {
+            // Determine if the input is an email or a username
+            String targetEmail = "";
+            String targetUsername = "";
 
-                // ─── NEW: Fetch the actual email address from SQLite ───
-                String userEmail = myDb.getUserEmail(user);
-
-                // Save session with the retrieved email address
-                session.saveSession(user, userEmail);
-
-                // Save username and email to UserSession for app-wide use
-                SharedPreferences userPrefs = getSharedPreferences("UserSession", MODE_PRIVATE);
-                userPrefs.edit()
-                        .putString("username", user)
-                        .putString("email", userEmail) // 👈 This makes it visible to your Profile Sheet Fragment
-                        .apply();
-
-                // 2. Restore saved details to the current session (Optional but helpful)
-                SharedPreferences detailsPrefs = getSharedPreferences("DetailsPrefs", MODE_PRIVATE);
-                String instrument = detailsPrefs.getString(user + "_instrument", "Guitar");
-                String dailyGoal  = detailsPrefs.getString(user + "_dailyGoal",  "20 mins");
-
-                userPrefs.edit()
-                        .putString("instrument", instrument)
-                        .putString("dailyGoal",  dailyGoal)
-                        .apply();
-
-                Toast.makeText(this, "Login Successful!", Toast.LENGTH_SHORT).show();
-
-                // 3. Go straight to Dashboard
-                goToDashboard();
-
+            if (inputUserOrEmail.contains("@")) {
+                targetEmail = inputUserOrEmail;
+                // Fetch username locally via the email lookup helper we added earlier
+                targetUsername = myDb.getUsernameByEmail(targetEmail);
+                if (targetUsername.isEmpty()) {
+                    // Fallback to email prefix if not cached locally yet
+                    targetUsername = targetEmail.split("@")[0];
+                }
             } else {
-                Toast.makeText(this, "Invalid Username or Password", Toast.LENGTH_SHORT).show();
+                targetUsername = inputUserOrEmail;
+                targetEmail = myDb.getUserEmail(targetUsername);
             }
+
+            if (targetEmail.isEmpty()) {
+                Toast.makeText(this, "User details not found locally. Please use email.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            // ─── FIX: Explicit final copies to pass safely inside the lambda ───
+            final String finalUsername = targetUsername;
+            final String finalEmail = targetEmail;
+
+            btnSignIn.setEnabled(false); // Prevent multiple simultaneous connection taps
+
+            // ── Online Authentication Focus via Firebase ──
+            mAuth.signInWithEmailAndPassword(finalEmail, pass)
+                .addOnCompleteListener(this, task -> {
+                    btnSignIn.setEnabled(true);
+
+                    if (task.isSuccessful()) {
+                        // Online authentication passed! Sync session configurations using safe final values:
+                        session.saveSession(finalUsername, finalEmail);
+
+                        // Save username and email to UserSession for app-wide use
+                        SharedPreferences userPrefs = getSharedPreferences("UserSession", MODE_PRIVATE);
+                        userPrefs.edit()
+                                .putString("username", finalUsername)
+                                .putString("email", finalEmail)
+                                .apply();
+
+                        // Restore saved details to the current session
+                        SharedPreferences detailsPrefs = getSharedPreferences("DetailsPrefs", MODE_PRIVATE);
+                        String instrument = detailsPrefs.getString(finalUsername + "_instrument", "Guitar");
+                        String dailyGoal  = detailsPrefs.getString(finalUsername + "_dailyGoal",  "20 mins");
+
+                        userPrefs.edit()
+                                .putString("instrument", instrument)
+                                .putString("dailyGoal",  dailyGoal)
+                                .apply();
+
+                        Toast.makeText(this, "Login Successful!", Toast.LENGTH_SHORT).show();
+
+                        // Go straight to Dashboard
+                        goToDashboard();
+                    } else {
+                        Toast.makeText(this, "Invalid Credentials: " + task.getException().getMessage(), Toast.LENGTH_LONG).show();
+                    }
+                });
         });
 
         ivTogglePassword = findViewById(R.id.iv_toggle_password);
@@ -90,16 +125,13 @@ public class LoginActivity extends AppCompatActivity {
             isPasswordVisible = !isPasswordVisible;
 
             if (isPasswordVisible) {
-                // 1. Show Password: Use HideReturnsTransformationMethod
                 etPass.setTransformationMethod(android.text.method.HideReturnsTransformationMethod.getInstance());
                 ivTogglePassword.setImageResource(R.drawable.ic_visibility_off);
             } else {
-                // 2. Hide Password: Use PasswordTransformationMethod
                 etPass.setTransformationMethod(android.text.method.PasswordTransformationMethod.getInstance());
                 ivTogglePassword.setImageResource(R.drawable.ic_visibility_on);
             }
 
-            // 3. CRITICAL: Move cursor to the end so it doesn't jump to the start
             if (etPass.getText() != null) {
                 etPass.setSelection(etPass.getText().length());
             }
@@ -108,7 +140,6 @@ public class LoginActivity extends AppCompatActivity {
 
     private void goToDashboard() {
         Intent intent = new Intent(LoginActivity.this, MainActivity.class);
-        // This ensures the user can't press 'Back' to return to the Login screen
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();

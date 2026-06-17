@@ -1,18 +1,5 @@
 package com.example.chordlab;
 
-/**
- * ChordLab: Polyphonic Note and Chord Detection System
- * Core component of the ChordLab backend architecture,
- * handling AI processing, multimodal sensor fusion, and/or state management.
- *
- * @author Mikhaella Mari D. Tiozon
- * @version 1.0
- * @since 2026-04-17
- * * Note: The algorithmic logic, machine learning integration, and database
- * architecture contained within this file are the original intellectual
- * property of the author.
- */
-
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
@@ -44,6 +31,9 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvProgressLevel, tvProgressExp;
     private CardView cardPracticeMetrics;
 
+    // ─── CLOUD MIGRATION SYNC ENGINE DECLARATION (UPDATED FOR FIREBASE) ───
+    private FirebaseSyncEngine firebaseSyncEngine;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -51,10 +41,13 @@ public class MainActivity extends AppCompatActivity {
 
         myDb = new DatabaseHelper(this);
 
+        // ─── INITIALIZE CLOUD MIGRATION DRIVER MODULE (UPDATED FOR FIREBASE) ───
+        firebaseSyncEngine = new FirebaseSyncEngine(this);
+
         // ── 1. INITIALIZE WIDGETS & USER WELCOME TEXT ──
         cardGuitar = findViewById(R.id.cardGuitar);
         cardPiano  = findViewById(R.id.cardPiano);
-        cardSax    = findViewById(R.id.cardUkelele); // Synchronized UI element ID
+        cardSax    = findViewById(R.id.cardUkelele);
 
         progressGuitar  = findViewById(R.id.progressGuitar);
         tvProgressLevel = findViewById(R.id.tvProgressLevel);
@@ -72,6 +65,9 @@ public class MainActivity extends AppCompatActivity {
         if (!username.equals("User") && !username.isEmpty()) {
             String todayKey = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
             myDb.generateDailyTasksIfMissing(username, todayKey);
+
+            // Trigger an initial synchronization sweep immediately upon loading view context
+            firebaseSyncEngine.syncUserToCloud(username);
         }
 
         // ── 2. INSTRUMENT SELECTION ACTION LISTENERS ──
@@ -149,6 +145,13 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
         applyInstrumentHighlight();
         applyProgressDisplay();
+
+        // ─── AUTOMATIC BACKGROUND SYNC WHENEVER USER BACKS OUT TO DASHBOARD ───
+        SharedPreferences prefs = getSharedPreferences("UserSession", MODE_PRIVATE);
+        String username = prefs.getString("username", "");
+        if (firebaseSyncEngine != null && !username.isEmpty()) {
+            firebaseSyncEngine.syncUserToCloud(username);
+        }
     }
 
     // ── INTERACTIVE ROUTER ENGINES ──────────────────────────────────────────
@@ -192,6 +195,9 @@ public class MainActivity extends AppCompatActivity {
         if (!username.isEmpty()) {
             String currentGoal = prefs.getString("dailyGoal", "20 mins");
             myDb.updateUserDetails(username, instrumentName, currentGoal);
+
+            // Re-sync changes to cloud after modifying profile parameters
+            if (firebaseSyncEngine != null) firebaseSyncEngine.syncUserToCloud(username);
         }
     }
 

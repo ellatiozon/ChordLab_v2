@@ -11,11 +11,15 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
-import android.widget.ImageView;
+
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthUserCollisionException;
 
 public class RegistrationActivity extends AppCompatActivity {
 
     DatabaseHelper myDb;
+    private FirebaseAuth mAuth; // Firebase Authentication Reference
+
     EditText etUser, etEmail, etPass, etConfirmPass;
     Button btnNext;
     ImageView ivTogglePassword, ivToggleConfirmPassword, btnBack;
@@ -34,13 +38,16 @@ public class RegistrationActivity extends AppCompatActivity {
             return insets;
         });
 
+        // Initialize Firebase Auth
+        mAuth         = FirebaseAuth.getInstance();
         myDb          = new DatabaseHelper(this);
+
         etUser        = findViewById(R.id.et_username);
         etEmail       = findViewById(R.id.et_email);
         etPass        = findViewById(R.id.et_password);
         etConfirmPass = findViewById(R.id.et_confirm_password);
         btnNext       = findViewById(R.id.btnNext);
-        btnBack = findViewById(R.id.btnBackReg);
+        btnBack       = findViewById(R.id.btnBackReg);
 
         addData();
         btnBack.setOnClickListener(v -> finish());
@@ -64,51 +71,60 @@ public class RegistrationActivity extends AppCompatActivity {
                 return;
             }
 
-            if (myDb.checkUsernameExists(user)) {
-                Toast.makeText(this, "Username is already taken!", Toast.LENGTH_SHORT).show();
+            if (pass.length() < 6) {
+                Toast.makeText(this, "Password must be at least 6 characters long", Toast.LENGTH_SHORT).show();
                 return;
             }
 
-            if (myDb.checkEmailExists(email)) {
-                Toast.makeText(this, "Email is already registered!", Toast.LENGTH_SHORT).show();
-                return;
-            }
+            // ── Online Authentication Focus via Firebase ──
+            btnNext.setEnabled(false); // Prevent double taps during network calls
 
-            // ── Insert into database ──
-            boolean isInserted = myDb.insertUser(user, email, pass);
+            mAuth.createUserWithEmailAndPassword(email, pass)
+                .addOnCompleteListener(this, task -> {
+                    btnNext.setEnabled(true);
 
-            if (isInserted) {
-                // Save session
-                SessionManager session = new SessionManager(this);
-                session.saveSession(user, email);
+                    if (task.isSuccessful()) {
+                        // Online authentication passed! Local caching fallback sync:
+                        boolean isInserted = myDb.insertUser(user, email, pass);
 
-                // Save username and email to UserSession
-                // detailsComplete is NOT set here — new user must complete details first
-                getSharedPreferences("UserSession", MODE_PRIVATE)
-                        .edit()
-                        .putString("username", user)
-                        .putString("email", email)
-                        .putBoolean("detailsComplete", false)
-                        .apply();
+                        if (isInserted) {
+                            // Save session matching old local variables
+                            SessionManager session = new SessionManager(this);
+                            session.saveSession(user, email);
 
-                Toast.makeText(this, "Welcome to ChordLab, " + user + "!", Toast.LENGTH_LONG).show();
+                            getSharedPreferences("UserSession", MODE_PRIVATE)
+                                    .edit()
+                                    .putString("username", user)
+                                    .putString("email", email)
+                                    .putBoolean("detailsComplete", false)
+                                    .apply();
 
-                // New user → go to Details page
-                Intent intent = new Intent(RegistrationActivity.this, DetailsActivity.class);
-                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                startActivity(intent);
-                finish();
+                            Toast.makeText(this, "Welcome to ChordLab, " + user + "!", Toast.LENGTH_LONG).show();
 
-            } else {
-                Toast.makeText(this, "Registration Failed. Please try again.", Toast.LENGTH_LONG).show();
-            }
+                            // New user → go to Details page
+                            Intent intent = new Intent(RegistrationActivity.this, DetailsActivity.class);
+                            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                            startActivity(intent);
+                            finish();
+                        } else {
+                            Toast.makeText(this, "Local synchronization profile failed.", Toast.LENGTH_LONG).show();
+                        }
+
+                    } else {
+                        // Error handling matching your custom conditions
+                        if (task.getException() instanceof FirebaseAuthUserCollisionException) {
+                            Toast.makeText(this, "Email is already registered!", Toast.LENGTH_LONG).show();
+                        } else {
+                            Toast.makeText(this, "Authentication failed: " + task.getException().getMessage(), Toast.LENGTH_LONG).show();
+                        }
+                    }
+                });
         });
 
-        // Inside addData() method
         ivTogglePassword = findViewById(R.id.iv_toggle_password);
         ivToggleConfirmPassword = findViewById(R.id.iv_toggle_confirm_password);
 
-// Toggle for Main Password
+        // Toggle for Main Password
         ivTogglePassword.setOnClickListener(v -> {
             isPasswordVisible = !isPasswordVisible;
             if (isPasswordVisible) {
@@ -118,11 +134,10 @@ public class RegistrationActivity extends AppCompatActivity {
                 etPass.setTransformationMethod(android.text.method.PasswordTransformationMethod.getInstance());
                 ivTogglePassword.setImageResource(R.drawable.ic_visibility_on);
             }
-            // Maintain cursor position
             if (etPass.getText() != null) etPass.setSelection(etPass.getText().length());
         });
 
-// Toggle for Confirm Password
+        // Toggle for Confirm Password
         ivToggleConfirmPassword.setOnClickListener(v -> {
             isConfirmPasswordVisible = !isConfirmPasswordVisible;
             if (isConfirmPasswordVisible) {
@@ -132,9 +147,7 @@ public class RegistrationActivity extends AppCompatActivity {
                 etConfirmPass.setTransformationMethod(android.text.method.PasswordTransformationMethod.getInstance());
                 ivToggleConfirmPassword.setImageResource(R.drawable.ic_visibility_on);
             }
-            // Maintain cursor position
             if (etConfirmPass.getText() != null) etConfirmPass.setSelection(etConfirmPass.getText().length());
         });
     }
-
 }
