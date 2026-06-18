@@ -18,7 +18,7 @@ import androidx.appcompat.widget.AppCompatButton;
 public class ChordLibraryActivity extends AppCompatActivity {
 
     // ── UI REFERENCES ───────────────────────────────────────────────────────
-    private TextView tvHeaderTitle, tvChordDisplayTitle, tvPromptText;
+    private TextView tvHeaderTitle, tvPromptText;
     private LinearLayout layoutRootNotes, layoutQualities, layoutPianoMode;
     private HorizontalScrollView scrollQualities;
     private View divider2;
@@ -70,7 +70,6 @@ public class ChordLibraryActivity extends AppCompatActivity {
 
     private void initializeViews() {
         tvHeaderTitle        = findViewById(R.id.tvHeaderTitle);
-        tvChordDisplayTitle  = findViewById(R.id.tvChordDisplayTitle);
         tvPromptText         = findViewById(R.id.tvPromptText);
         layoutRootNotes      = findViewById(R.id.layoutRootNotes);
         layoutQualities      = findViewById(R.id.layoutQualities);
@@ -174,8 +173,8 @@ public class ChordLibraryActivity extends AppCompatActivity {
                         currentQuality = "Major";
                     }
                 } else if (selectedInstrument.equals("ukulele")) {
-                    // Ukulele hides minor for F and G
-                    if ((currentRootNote.equals("F") || currentRootNote.equals("G")) && currentQuality.equals("Minor")) {
+                    // Ukulele ONLY hides minor for F
+                    if (currentRootNote.equals("F")) {
                         currentQuality = "Major";
                     }
                 }
@@ -195,8 +194,8 @@ public class ChordLibraryActivity extends AppCompatActivity {
         String[] qualitiesToRender;
         if (selectedInstrument.equals("guitar") && (currentRootNote.equals("C") || currentRootNote.equals("G"))) {
             qualitiesToRender = new String[]{"Major"}; // Only Major for Guitar C & G
-        } else if (selectedInstrument.equals("ukulele") && (currentRootNote.equals("F") || currentRootNote.equals("G"))) {
-            qualitiesToRender = new String[]{"Major"}; // Only Major for Ukulele F & G
+        } else if (selectedInstrument.equals("ukulele") && currentRootNote.equals("F")) {
+            qualitiesToRender = new String[]{"Major"}; // FIXED: Only hide Minor for Ukulele F note (G note can be Minor)
         } else {
             qualitiesToRender = chordQualities; // Major and Minor for everything else
         }
@@ -240,12 +239,6 @@ public class ChordLibraryActivity extends AppCompatActivity {
 
     // ── DYNAMIC IMAGE ASSET LOADING MATRIX ──────────────────────────────────
     private void updateChordDisplay() {
-        if (selectedInstrument.equals("piano") && currentPianoMode.equals("Note")) {
-            tvChordDisplayTitle.setText(currentRootNote + " Note");
-        } else {
-            tvChordDisplayTitle.setText(currentRootNote + " " + currentQuality);
-        }
-
         // Fetch exact asset name mapped to user's convention
         String imageName = getResourceName(selectedInstrument, currentRootNote, currentQuality, currentPianoMode);
 

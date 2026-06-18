@@ -1,5 +1,19 @@
 package com.example.chordlab;
 
+/**
+ * ChordLab: Polyphonic Note and Chord Detection System
+ * This file is a core component of the ChordLab backend architecture,
+ * handling AI processing, multimodal sensor fusion, and/or state management.
+ *
+ * @author Mikhaella Mari D. Tiozon
+ * @version 1.0
+ * @since 2026-04-17
+ *
+ * Note: The algorithmic logic, machine learning integration, and database
+ * architecture contained within this file are the original intellectual
+ * property of the author.
+ */
+
 import android.app.Activity;
 import android.content.Intent;
 import android.database.Cursor;
@@ -24,7 +38,6 @@ import java.util.Set;
 
 public class PianoVideoTranslationActivity extends AppCompatActivity {
 
-    // UI Components matching your new XML
     private LinearLayout btnBackToDashboard, layoutProgress, layoutResultSummary;
     private CardView cardUploadArea;
     private TextView tvUploadStatusText, tvSelectedFileName, tvDetectedKey, tvChordCount, tvResultsDisplay;
@@ -35,7 +48,7 @@ public class PianoVideoTranslationActivity extends AppCompatActivity {
     private List<ChordEvent> finalDetectedChords = new ArrayList<>();
 
     private int noiseToleranceCounter = 0;
-    private final int MAX_TOLERANCE = 2; // Grace period for visual/audio glitches
+    private final int MAX_TOLERANCE = 2;
 
     private static class ChordEvent {
         String chordName;
@@ -54,7 +67,6 @@ public class PianoVideoTranslationActivity extends AppCompatActivity {
                 if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
                     selectedMediaUri = result.getData().getData();
 
-                    // Update UI to show file is ready
                     String fileName = getFileName(selectedMediaUri);
                     tvSelectedFileName.setText(fileName);
                     tvUploadStatusText.setText("Audio Selected");
@@ -75,7 +87,6 @@ public class PianoVideoTranslationActivity extends AppCompatActivity {
         bindViews();
         setupListeners();
 
-        // Initialize the new 2D Image AI
         PianoVideoChordAnalyzer.initModel(this);
     }
 
@@ -100,7 +111,6 @@ public class PianoVideoTranslationActivity extends AppCompatActivity {
             Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
             intent.addCategory(Intent.CATEGORY_OPENABLE);
 
-            // Set type to wildcard, but restrict to audio and video explicitly
             intent.setType("*/*");
             String[] mimeTypes = {"audio/*", "video/*"};
             intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes);
@@ -124,7 +134,6 @@ public class PianoVideoTranslationActivity extends AppCompatActivity {
     }
 
     private void startTranslationPipeline(Uri mediaUri) {
-        // Lock UI during processing
         btnProcessAudio.setEnabled(false);
         btnProcessAudio.setAlpha(0.5f);
         cardUploadArea.setEnabled(false);
@@ -133,35 +142,28 @@ public class PianoVideoTranslationActivity extends AppCompatActivity {
 
         VideoAudioSlicer slicer = new VideoAudioSlicer();
 
-        // The slicer handles audio files exactly the same way it handles video files!
         slicer.processVideo(this, mediaUri, new VideoAudioSlicer.SlicerCallback() {
             @Override
             public void onProgressUpdate(String status) {
-                // Optional: Update a textview with status if you want
             }
 
-            // Place this queue at the top of your Activity or inside the callback scope
             private final java.util.LinkedList<String> rollingBuffer = new java.util.LinkedList<>();
             private static final int BUFFER_SIZE = 5; // 5 frames = 1 second of stable memory
 
             @Override
             public void onSliceReady(float[] audioChunk, float timestampSeconds) {
-                // 1. Run inference on the 1-second micro-chunk
                 String detected = PianoVideoChordAnalyzer.translateAudioSlice(audioChunk, PianoVideoTranslationActivity.this);
                 if (detected == null || detected.equals("Model Missing")) {
                     detected = "Background Noise";
                 }
 
-                // 2. Feed the Real-Time Rolling Buffer
                 rollingBuffer.add(detected);
                 if (rollingBuffer.size() > BUFFER_SIZE) {
-                    rollingBuffer.removeFirst(); // Keep memory strictly at 1 second length
+                    rollingBuffer.removeFirst();
                 }
 
-                // Wait until the buffer has enough data to make an educated guess
                 if (rollingBuffer.size() < 3) return;
 
-                // 3. Find the most common chord in the current buffer (The Mode)
                 String stableWinner = "Background Noise";
                 int maxCount = 0;
 
@@ -173,14 +175,10 @@ public class PianoVideoTranslationActivity extends AppCompatActivity {
                     }
                 }
 
-                // THE FIX: Lower the majority rule to catch fast-decaying chords like A and B.
-                // If the AI confidently hits it twice (0.4 seconds), we trust it.
                 if (maxCount < 2) return;
 
-                // Do not plot empty background noise on the timeline
                 if (stableWinner.equals("Background Noise")) return;
 
-                // 4. Update the visual timeline cleanly
                 float exactTime = Math.round(timestampSeconds * 5) / 5.0f;
 
                 if (finalDetectedChords.isEmpty()) {
@@ -189,10 +187,8 @@ public class PianoVideoTranslationActivity extends AppCompatActivity {
                     ChordEvent lastEvent = finalDetectedChords.get(finalDetectedChords.size() - 1);
 
                     if (lastEvent.chordName.equals(stableWinner)) {
-                        // Extend the current chord's duration by the 0.2s micro-hop
                         lastEvent.endTime = exactTime + 0.2f;
                     } else {
-                        // The rolling buffer confirmed a new chord. Lock it in.
                         if (exactTime < lastEvent.endTime) exactTime = lastEvent.endTime;
                         finalDetectedChords.add(new ChordEvent(stableWinner, exactTime, exactTime + 0.2f));
                     }
@@ -228,11 +224,9 @@ public class PianoVideoTranslationActivity extends AppCompatActivity {
             return;
         }
 
-        // 1. Generate the Timeline Text
         StringBuilder timelineText = new StringBuilder();
         Set<String> uniqueChords = new HashSet<>();
 
-        // Track the chord that appears for the longest duration to guess the "Key"
         String dominantChord = "";
         float maxDuration = 0;
 
@@ -251,23 +245,20 @@ public class PianoVideoTranslationActivity extends AppCompatActivity {
                     event.chordName));
         }
 
-        // 2. Update the Dashboard Summary
         layoutResultSummary.setVisibility(View.VISIBLE);
         resultsDivider.setVisibility(View.VISIBLE);
 
         tvChordCount.setText(String.valueOf(uniqueChords.size()));
 
         if (!dominantChord.isEmpty()) {
-            // Strip " major" or " minor" to just show the root note in the UI bubble
             String rootKey = dominantChord.split(" ")[0];
             tvDetectedKey.setText(rootKey);
         } else {
             tvDetectedKey.setText("-");
         }
 
-        // 3. Display the formatted timeline
         tvResultsDisplay.setText(timelineText.toString().trim());
-        tvResultsDisplay.setTextColor(0xFF333333); // Dark text for readability
+        tvResultsDisplay.setTextColor(0xFF333333);
     }
 
     private String formatTime(float totalSeconds) {
@@ -275,7 +266,6 @@ public class PianoVideoTranslationActivity extends AppCompatActivity {
         int seconds = (int) (totalSeconds % 60);
         int milliseconds = Math.round((totalSeconds - (int)totalSeconds) * 10);
 
-        // Outputs clean tracks like [0:01.2] or [0:04.8]
         if (milliseconds == 0) {
             return String.format("%d:%02d", minutes, seconds);
         } else {
@@ -283,7 +273,6 @@ public class PianoVideoTranslationActivity extends AppCompatActivity {
         }
     }
 
-    // Helper to get actual filename from URI
     private String getFileName(Uri uri) {
         String result = null;
         if (uri.getScheme().equals("content")) {

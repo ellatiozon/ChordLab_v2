@@ -71,11 +71,9 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
     private CountDownTimer flashcardTimer;
     private final long TIME_LIMIT_MS = 23000; //20 secs time limit for the flashcard
 
-    // Gatekeeper Tracking Properties
     private InstrumentGatekeeper gatekeeper;
     private Bitmap currentFrameBitmap;
 
-    // Task Tracking Timestamps
     private long sessionStartTime = 0;
 
     private final ActivityResultLauncher<String> requestPermissionLauncher =
@@ -100,7 +98,6 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
 
         setupUI();
 
-        // Persistent Stat Tracker: Mark Instrument Explored
         SharedPreferences prefs = getSharedPreferences("UserSession", MODE_PRIVATE);
         String username = prefs.getString("username", "");
         if (!username.isEmpty()) {
@@ -120,19 +117,16 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
     @Override
     protected void onStart() {
         super.onStart();
-        // Record active session entry point time
         sessionStartTime = System.currentTimeMillis();
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-        // Calculate accumulated minutes spent inside this activity viewport
         if (sessionStartTime > 0) {
             long totalSessionMs = System.currentTimeMillis() - sessionStartTime;
             int totalSessionMins = (int) (totalSessionMs / 60000);
 
-            // Give a 1-minute grace value if spent over 30 seconds
             if (totalSessionMs >= 30000 && totalSessionMins == 0) {
                 totalSessionMins = 1;
             }
@@ -144,13 +138,10 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
                     String todayKey = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
                     DatabaseHelper db = new DatabaseHelper(this);
 
-                    // Update total accumulated practice minutes column
                     db.addPracticeMinutes(username, totalSessionMins);
 
-                    // Increment overall practicing bucket
                     db.trackTaskProgress(username, todayKey, "TOTAL_TIME", totalSessionMins, null);
 
-                    // Increment specific Flashcard time metric if mode was active
                     if ("FLASHCARDS".equalsIgnoreCase(sessionMode)) {
                         db.trackTaskProgress(username, todayKey, "FLASHCARD_TIME", totalSessionMins, null);
                     }
@@ -332,8 +323,6 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
             List<NormalizedLandmark> hand = result.landmarks().get(0);
             String target = ukuleleChords[currentChordIndex];
 
-            // 1. Run the Gatekeeper Verification pipeline
-            // ── 3. ADDED: EVENT-DRIVEN GATEKEEPER LOGIC ──
             if (!isInstrumentVerifiedForThisChord) {
                 boolean isPresent = false;
                 android.graphics.RectF currentBox = null;
@@ -350,26 +339,21 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
                         binding.overlayView.setImageSourceInfo(imageWidth, imageHeight);
                         binding.overlayView.setResults(result);
 
-                        // DRAW THE RED BOX
                         binding.overlayView.setGatekeeperBox(finalBox);
 
                         binding.txtFeedback.setText("Show your Ukulele first!");
                         binding.txtFeedback.setBackgroundColor(Color.parseColor("#FFCDD2"));
                         binding.txtFeedback.setTextColor(Color.parseColor("#B71C1C"));
                     });
-                    return; // Halt Pipeline execution
+                    return;
                 } else {
-                    // Instrument found! Lock it in for the rest of this chord.
                     isInstrumentVerifiedForThisChord = true;
 
                     runOnUiThread(() -> {
-                        // ERASE THE RED BOX (They successfully gripped the fretboard)
                         binding.overlayView.setGatekeeperBox(null);
                     });
                 }
             }
-
-            // 2. Run Chord Analysis pipeline if gatekeeper checks pass
             DetectionResult resultObj = ChordAnalyzer.detectChord(hand, target, "UKULELE", this);
 
             runOnUiThread(() -> {
@@ -439,17 +423,13 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
             db.addExp(username, 1);
             db.incrementChordsLearned(username);
 
-            // Persistent Analytics Hook for Specific Instruments
             db.incrementSpecificInstrumentStat(username, db.getUkuleleCol());
 
-            // Today's Task Objectives Progress Updating Tracker
             String target = ukuleleChords[currentChordIndex];
             String todayKey = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
 
-            // 1. Progress generic correct chords total goal list
             db.trackTaskProgress(username, todayKey, "CORRECT_CHORDS", 1, null);
 
-            // 2. Clear out specific chord assignment if matching designated objective
             db.trackTaskProgress(username, todayKey, "SPECIFIC_CHORD", 1, target);
         }
     }

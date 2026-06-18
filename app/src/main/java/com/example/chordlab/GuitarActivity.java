@@ -76,7 +76,6 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
 
     private Bitmap currentFrameBitmap;
 
-    // ── TASK TRACKING TIMESTAMPS FROM FILE 2 ──
     private long sessionStartTime = 0;
 
     private final ActivityResultLauncher<String> requestPermissionLauncher =
@@ -98,12 +97,10 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
         aiHelper = new HandLandmarkerHelper(this, this);
         successSound = MediaPlayer.create(this, R.raw.correct_answer);
 
-        // Initialize Gatekeeper
         gatekeeper = new InstrumentGatekeeper(this, "guitar_gatekeeper.tflite");
 
         setupUI();
 
-        // ── PERSISTENT STAT: MARK INSTRUMENT EXPLORED (FILE 2 FEATURE FOR GUITAR) ──
         SharedPreferences prefs = getSharedPreferences("UserSession", MODE_PRIVATE);
         String username = prefs.getString("username", "");
         if (!username.isEmpty()) {
@@ -123,19 +120,16 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
     @Override
     protected void onStart() {
         super.onStart();
-        // Record active session entry point time (File 2 implementation)
         sessionStartTime = System.currentTimeMillis();
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-        // Calculate accumulated minutes spent inside viewport (File 2 implementation)
         if (sessionStartTime > 0) {
             long totalSessionMs = System.currentTimeMillis() - sessionStartTime;
             int totalSessionMins = (int) (totalSessionMs / 60000);
 
-            // Give a 1-minute grace value if spent over 30 seconds
             if (totalSessionMs >= 30000 && totalSessionMins == 0) {
                 totalSessionMins = 1;
             }
@@ -147,19 +141,16 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
                     String todayKey = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
                     DatabaseHelper db = new DatabaseHelper(this);
 
-                    // Update total accumulated practice minutes column
                     db.addPracticeMinutes(username, totalSessionMins);
 
-                    // Increment overall practicing bucket
                     db.trackTaskProgress(username, todayKey, "TOTAL_TIME", totalSessionMins, null);
 
-                    // Increment specific Flashcard time metric if mode was active
                     if ("FLASHCARDS".equalsIgnoreCase(sessionMode)) {
                         db.trackTaskProgress(username, todayKey, "FLASHCARD_TIME", totalSessionMins, null);
                     }
                 }
             }
-            sessionStartTime = 0; // reset tracking
+            sessionStartTime = 0;
         }
     }
 
@@ -188,7 +179,6 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
     private void setupUI() {
         binding.btnBack.setOnClickListener(v -> finish());
 
-        // File 1 Priority Fix: Ensure the visual debug box is visible!
         binding.overlayView.setVisibility(View.VISIBLE);
 
         if (sessionMode.equals("FLASHCARDS")) {
@@ -265,7 +255,6 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
         matchStartTime = 0;
         hasDinged = false;
 
-        //to wake up the Gatekeeper for the new chord
         isInstrumentVerifiedForThisChord = false;
     }
 
@@ -332,7 +321,6 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
             List<NormalizedLandmark> hand = result.landmarks().get(0);
             String target = guitarChords[currentChordIndex];
 
-            // ── 1. EVENT-DRIVEN GATEKEEPER LOGIC ──
             if (!isInstrumentVerifiedForThisChord) {
                 boolean isGuitarPresent = false;
                 android.graphics.RectF currentBox = null;
@@ -354,19 +342,16 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
                         binding.txtFeedback.setBackgroundColor(Color.parseColor("#FFCDD2"));
                         binding.txtFeedback.setTextColor(Color.parseColor("#B71C1C"));
                     });
-                    return; // Halt Pipeline execution
+                    return;
                 } else {
-                    // Instrument found! Lock it in for the rest of this chord.
                     isInstrumentVerifiedForThisChord = true;
 
                     runOnUiThread(() -> {
-                        // ERASE THE RED BOX (They successfully gripped the fretboard)
                         binding.overlayView.setGatekeeperBox(null);
                     });
                 }
             }
 
-            // Run Chord Analysis pipeline if gatekeeper validation passes
             DetectionResult resultObj = GuitarChordAnalyzer.detectChord(hand, target, this);
 
             runOnUiThread(() -> {

@@ -1,5 +1,19 @@
 package com.example.chordlab;
 
+/**
+ * ChordLab: Polyphonic Note and Chord Detection System
+ * This file is a core component of the ChordLab backend architecture,
+ * handling AI processing, multimodal sensor fusion, and/or state management.
+ *
+ * @author Mikhaella Mari D. Tiozon
+ * @version 1.0
+ * @since 2026-04-17
+ *
+ * Note: The algorithmic logic, machine learning integration, and database
+ * architecture contained within this file are the original intellectual
+ * property of the author.
+ */
+
 import android.content.Context;
 import android.net.Uri;
 
@@ -26,12 +40,8 @@ public class VideoAudioSlicer {
     }
 
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
-    // 1. Core Mathematical Constants
     private static final int SAMPLE_RATE = 16000;
-    private static final int WINDOW_SIZE = 16000; // Always 1 full second (Required by Neural Net)
-
-    // NEW: The Micro-Buffer Step
-    // 3200 samples = exactly 0.2 seconds. This means the AI makes 5 predictions every second.
+    private static final int WINDOW_SIZE = 16000;
     private static final int HOP_SIZE = 3200;
 
     public void processVideo(Context context, Uri videoUri, SlicerCallback callback) {
@@ -39,7 +49,6 @@ public class VideoAudioSlicer {
 
         executorService.execute(() -> {
             try {
-                // 1. Copy URI to a temporary local file
                 File inputVideo = new File(context.getCacheDir(), "input_video.mp4");
                 InputStream is = context.getContentResolver().openInputStream(videoUri);
                 FileOutputStream fos = new FileOutputStream(inputVideo);
@@ -51,7 +60,6 @@ public class VideoAudioSlicer {
                 fos.close();
                 is.close();
 
-                // 2. FFmpeg Extraction Command
                 callback.onProgressUpdate("Extracting raw audio...");
                 File outputPcm = new File(context.getCacheDir(), "extracted_audio.pcm");
                 if (outputPcm.exists()) outputPcm.delete();
@@ -69,7 +77,6 @@ public class VideoAudioSlicer {
                     callback.onError("FFmpeg Extraction Failed.");
                 }
 
-                // Cleanup temporary files
                 if (inputVideo.exists()) inputVideo.delete();
                 if (outputPcm.exists()) outputPcm.delete();
 
@@ -82,17 +89,13 @@ public class VideoAudioSlicer {
     public void sliceAudioTrack(float[] audioTrack, SlicerCallback listener) {
         int totalSamples = audioTrack.length;
 
-        // 2. The Micro-Sliding Loop
         for (int i = 0; i + WINDOW_SIZE <= totalSamples; i += HOP_SIZE) {
             float[] windowChunk = new float[WINDOW_SIZE];
 
-            // Copy 16,000 samples starting from the current 'i' position
             System.arraycopy(audioTrack, i, windowChunk, 0, WINDOW_SIZE);
 
-            // Calculate the exact timestamp for the START of this micro-buffer
             float timestampSeconds = (float) i / SAMPLE_RATE;
 
-            // Fire the chunk to the AI
             listener.onSliceReady(windowChunk, timestampSeconds);
         }
     }
@@ -107,15 +110,13 @@ public class VideoAudioSlicer {
             ByteBuffer byteBuffer = ByteBuffer.wrap(pcmBytes);
             byteBuffer.order(ByteOrder.LITTLE_ENDIAN);
 
-            int totalSamples = pcmBytes.length / 2; // 2 bytes per 16-bit sample
+            int totalSamples = pcmBytes.length / 2;
             float[] allFloats = new float[totalSamples];
 
-            // Convert to normalized floats
             for (int i = 0; i < totalSamples; i++) {
                 allFloats[i] = byteBuffer.getShort() / 32768.0f;
             }
 
-            // Slice into perfect 16,000 chunks
             for (int i = 0; i <= totalSamples - WINDOW_SIZE; i += HOP_SIZE) {
                 float[] chunk = new float[WINDOW_SIZE];
                 System.arraycopy(allFloats, i, chunk, 0, WINDOW_SIZE);

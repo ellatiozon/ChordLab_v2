@@ -1,5 +1,19 @@
 package com.example.chordlab;
 
+/**
+ * ChordLab: Polyphonic Note and Chord Detection System
+ * This file is a core component of the ChordLab backend architecture,
+ * handling AI processing, multimodal sensor fusion, and/or state management.
+ *
+ * @author Mikhaella Mari D. Tiozon
+ * @version 1.0
+ * @since 2026-04-17
+ *
+ * Note: The algorithmic logic, machine learning integration, and database
+ * architecture contained within this file are the original intellectual
+ * property of the author.
+ */
+
 import android.content.Context;
 import android.content.res.AssetFileDescriptor;
 import android.util.Log;
@@ -12,7 +26,6 @@ public class PianoVideoChordAnalyzer {
 
     private static Interpreter tfliteMajors;
 
-    // ONLY the 8 labels from your original Majors model
     private static final String[] MAJOR_LABELS = {
             "A major", "B major", "Background Noise", "C major",
             "D major", "E major", "F major", "G major"
@@ -22,7 +35,7 @@ public class PianoVideoChordAnalyzer {
         if (tfliteMajors != null) return;
         try {
             Interpreter.Options options = new Interpreter.Options();
-            options.setNumThreads(2); // Keeps the UI completely smooth
+            options.setNumThreads(2);
             tfliteMajors = new Interpreter(loadModelFile(context, "piano_video_majors_spectrogram.tflite"), options);
             Log.d("ChordLab_MVP", "Engine Initialized: Majors Only.");
         } catch (Exception e) {
@@ -36,35 +49,29 @@ public class PianoVideoChordAnalyzer {
             if (tfliteMajors == null) return "Model Missing";
         }
 
-        // 1. Format the audio chunk
         float[] verifiedBuffer = new float[16000];
         if (rawAudioChunk != null) {
             System.arraycopy(rawAudioChunk, 0, verifiedBuffer, 0, Math.min(rawAudioChunk.length, 16000));
         }
 
-        // 2. Amplitude Gate (Silence Filter)
         float maxAmplitude = 0.0f;
         for (float val : verifiedBuffer) {
             float absVal = Math.abs(val);
             if (absVal > maxAmplitude) maxAmplitude = absVal;
         }
 
-        // If it's too quiet, instantly return noise
         if (maxAmplitude < 0.05f) {
             return "Background Noise";
         }
 
-        // 3. Normalize for the model
         float[][] inputTensor = new float[1][16000];
         for (int i = 0; i < verifiedBuffer.length; i++) {
             inputTensor[0][i] = verifiedBuffer[i] / maxAmplitude;
         }
 
-        // 4. Run Inference
         float[][] outputDistribution = new float[1][MAJOR_LABELS.length];
         tfliteMajors.run(inputTensor, outputDistribution);
 
-        // 5. Find the winner
         int bestIdx = -1;
         float highestConfidence = -1.0f;
 
@@ -77,7 +84,6 @@ public class PianoVideoChordAnalyzer {
 
         String predictedChord = MAJOR_LABELS[bestIdx];
 
-        // Strict 60% confidence threshold to prevent flickering
         if (highestConfidence < 0.60f) {
             return "Background Noise";
         }

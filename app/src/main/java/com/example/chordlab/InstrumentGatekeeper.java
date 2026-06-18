@@ -1,5 +1,18 @@
 package com.example.chordlab;
 
+/**
+ * ChordLab: Polyphonic Note and Chord Detection System
+ * * This file is a core component of the ChordLab backend architecture,
+ * handling AI processing, multimodal sensor fusion, and/or state management.
+ *
+ * @author Mikhaella Mari D. Tiozon
+ * @version 1.0
+ * @since 2026-04-17
+ * * Note: The algorithmic logic, machine learning integration, and database
+ * architecture contained within this file are the original intellectual
+ * property of the author.
+ */
+
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.util.Log;
@@ -21,9 +34,12 @@ public class InstrumentGatekeeper {
 
     private Interpreter tflite;
     private ImageProcessor imageProcessor;
-
-    // UI Tracker
     private android.graphics.RectF lastBoundingBox = null;
+
+    // ── THE HEARTBEAT SYSTEM ──
+    private long lastCheckTime = 0;
+    private boolean lastVerificationResult = false;
+    private final long HEARTBEAT_INTERVAL_MS = 2000; // Check every 2 seconds
 
     public InstrumentGatekeeper(Context context, String modelFilename) {
         try {
@@ -41,10 +57,16 @@ public class InstrumentGatekeeper {
         }
     }
 
+    // Called by the Activity when a new chord loads to force an immediate re-check!
+    public void resetHeartbeat() {
+        lastCheckTime = 0;
+        lastVerificationResult = false;
+    }
+
     public boolean verifyInstrument(Bitmap fullFrame, List<NormalizedLandmark> handLandmarks) {
         if (tflite == null || fullFrame == null) return false;
 
-        // 1. FAST MATH: Find the hand boundaries
+        // 1. FAST MATH: Calculate boundaries EVERY frame for smooth UI tracking
         float minX = 1.0f, maxX = 0.0f, minY = 1.0f, maxY = 0.0f;
         for (NormalizedLandmark landmark : handLandmarks) {
             if (landmark.x() < minX) minX = landmark.x();
@@ -56,7 +78,6 @@ public class InstrumentGatekeeper {
         float handWidth = maxX - minX;
         float handHeight = maxY - minY;
 
-        // 2. ASYMMETRICAL PEG HUNTER: Look UP the fretboard
         float xPadding = handWidth * 0.50f;
         float yBottomPadding = handHeight * 0.50f;
         float yTopPadding = handHeight * 2.50f;
@@ -66,10 +87,18 @@ public class InstrumentGatekeeper {
         float normEndX = Math.min(1, maxX + xPadding);
         float normEndY = Math.min(1, maxY + yBottomPadding);
 
-        // Update the visual box immediately for the UI Overlay
         lastBoundingBox = new android.graphics.RectF(normStartX, normStartY, normEndX, normEndY);
 
-        // 3. PIXEL MAPPING: Convert to screen coordinates
+        // 2. THE HEARTBEAT THROTTLE
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastCheckTime < HEARTBEAT_INTERVAL_MS) {
+            // It hasn't been 2 seconds yet. Save battery and return the cached result!
+            return lastVerificationResult;
+        }
+
+        // 3. HEAVY AI: It is time to poll the camera again.
+        lastCheckTime = currentTime;
+
         int width = fullFrame.getWidth();
         int height = fullFrame.getHeight();
 
@@ -81,9 +110,11 @@ public class InstrumentGatekeeper {
         int cropWidth = endX - startX;
         int cropHeight = endY - startY;
 
-        if (cropWidth <= 0 || cropHeight <= 0) return false;
+        if (cropWidth <= 0 || cropHeight <= 0) {
+            lastVerificationResult = false;
+            return false;
+        }
 
-        // 4. HEAVY AI (Only executes because the Activity explicitly asked it to)
         Bitmap croppedBitmap = Bitmap.createBitmap(fullFrame, startX, startY, cropWidth, cropHeight);
         TensorImage tensorImage = new TensorImage(DataType.FLOAT32);
         tensorImage.load(croppedBitmap);
@@ -94,8 +125,9 @@ public class InstrumentGatekeeper {
 
         float[] probabilities = probabilityBuffer.getFloatArray();
 
-        // Target Instrument (Index 1) must clear the strict 60% confidence gate
-        return probabilities[1] > 0.60f;
+        // Cache the result so we remember it for the next 2 seconds
+        lastVerificationResult = probabilities[1] > 0.60f;
+        return lastVerificationResult;
     }
 
     public android.graphics.RectF getBoundingBox() {
