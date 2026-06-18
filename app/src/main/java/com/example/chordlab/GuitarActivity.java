@@ -68,8 +68,11 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
     private boolean isChordLocked = false;
     private boolean hasDinged = false;
 
+    //event-driven guitar fretboard detection
+    private boolean isInstrumentVerifiedForThisChord = false;
+
     private CountDownTimer flashcardTimer;
-    private final long TIME_LIMIT_MS = 13000;
+    private final long TIME_LIMIT_MS = 23000; //changed to 20 secs time
 
     private Bitmap currentFrameBitmap;
 
@@ -261,6 +264,9 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
         isChordLocked = false;
         matchStartTime = 0;
         hasDinged = false;
+
+        //to wake up the Gatekeeper for the new chord
+        isInstrumentVerifiedForThisChord = false;
     }
 
     private void loadRandomFlashcard() {
@@ -326,21 +332,38 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
             List<NormalizedLandmark> hand = result.landmarks().get(0);
             String target = guitarChords[currentChordIndex];
 
-            // FIXED BUG: Correctly assigning evaluation to the execution conditional state loop
-            boolean isGuitarPresent = false;
-            if (gatekeeper != null && currentFrameBitmap != null) {
-                isGuitarPresent = gatekeeper.verifyInstrument(currentFrameBitmap, hand);
-            }
+            // ── 1. EVENT-DRIVEN GATEKEEPER LOGIC ──
+            if (!isInstrumentVerifiedForThisChord) {
+                boolean isGuitarPresent = false;
+                android.graphics.RectF currentBox = null;
 
-            if (!isGuitarPresent) {
-                runOnUiThread(() -> {
-                    binding.overlayView.setImageSourceInfo(imageWidth, imageHeight);
-                    binding.overlayView.setResults(result);
-                    binding.txtFeedback.setText("Hold the Guitar properly!");
-                    binding.txtFeedback.setBackgroundColor(Color.parseColor("#FFCDD2"));
-                    binding.txtFeedback.setTextColor(Color.parseColor("#B71C1C"));
-                });
-                return; // HALT PIPELINE: Do not execute coordinate checking
+                if (gatekeeper != null && currentFrameBitmap != null) {
+                    isGuitarPresent = gatekeeper.verifyInstrument(currentFrameBitmap, hand);
+                    currentBox = gatekeeper.getBoundingBox(); // Grab the coordinates
+                }
+
+                final android.graphics.RectF finalBox = currentBox;
+
+                if (!isGuitarPresent) {
+                    runOnUiThread(() -> {
+                        binding.overlayView.setImageSourceInfo(imageWidth, imageHeight);
+                        binding.overlayView.setResults(result);
+                        binding.overlayView.setGatekeeperBox(finalBox);
+
+                        binding.txtFeedback.setText("Show your Guitar first!");
+                        binding.txtFeedback.setBackgroundColor(Color.parseColor("#FFCDD2"));
+                        binding.txtFeedback.setTextColor(Color.parseColor("#B71C1C"));
+                    });
+                    return; // Halt Pipeline execution
+                } else {
+                    // Instrument found! Lock it in for the rest of this chord.
+                    isInstrumentVerifiedForThisChord = true;
+
+                    runOnUiThread(() -> {
+                        // ERASE THE RED BOX (They successfully gripped the fretboard)
+                        binding.overlayView.setGatekeeperBox(null);
+                    });
+                }
             }
 
             // Run Chord Analysis pipeline if gatekeeper validation passes
@@ -349,6 +372,7 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
             runOnUiThread(() -> {
                 binding.overlayView.setImageSourceInfo(imageWidth, imageHeight);
                 binding.overlayView.setResults(result);
+                binding.overlayView.setGatekeeperBox(null);
 
                 if (resultObj.isMatch) {
                     if (matchStartTime == 0) matchStartTime = System.currentTimeMillis();
@@ -391,6 +415,8 @@ public class GuitarActivity extends AppCompatActivity implements HandLandmarkerH
             matchStartTime = 0;
             runOnUiThread(() -> {
                 binding.overlayView.setResults(null);
+
+                binding.overlayView.setGatekeeperBox(null);
 
                 if (!isChordLocked) {
                     String target = guitarChords[currentChordIndex];

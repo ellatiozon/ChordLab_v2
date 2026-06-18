@@ -17,6 +17,7 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.RectF;
 import android.util.AttributeSet;
 import android.view.View;
 import androidx.annotation.Nullable;
@@ -32,6 +33,10 @@ public class OverlayView extends View {
 
     private Paint pointPaint;
     private Paint linePaint;
+    private Paint boundingBoxPaint;
+
+    // --- NEW: Stores the bounding box from the Gatekeeper ---
+    private RectF gatekeeperBox = null;
 
     // Scaling variables
     private float scaleFactor = 1f;
@@ -48,6 +53,12 @@ public class OverlayView extends View {
         this.imageHeight = height;
     }
 
+    // --- NEW: Setter method to receive the box from your Activities ---
+    public void setGatekeeperBox(RectF box) {
+        this.gatekeeperBox = box;
+        invalidate(); // Forces the view to redraw immediately
+    }
+
     private void initPaints() {
         pointPaint = new Paint();
         pointPaint.setColor(Color.parseColor("#C2185B"));
@@ -60,6 +71,11 @@ public class OverlayView extends View {
         linePaint.setStrokeWidth(8f);
         linePaint.setStyle(Paint.Style.STROKE);
         linePaint.setAntiAlias(true);
+
+        boundingBoxPaint = new Paint();
+        boundingBoxPaint.setColor(Color.RED);
+        boundingBoxPaint.setStyle(Paint.Style.STROKE);
+        boundingBoxPaint.setStrokeWidth(8f); // Thickness of the box
     }
 
     public void setResults(HandLandmarkerResult handLandmarkerResult) {
@@ -70,11 +86,11 @@ public class OverlayView extends View {
     @Override
     public void draw(Canvas canvas) {
         super.draw(canvas);
-        if (results == null || results.landmarks().isEmpty()) return;
 
         int viewWidth = getWidth();
         int viewHeight = getHeight();
 
+        // Calculate scaling regardless of hand presence so the box can draw independently if needed
         scaleFactor = Math.max((float) viewWidth / imageWidth, (float) viewHeight / imageHeight);
         float scaledWidth = imageWidth * scaleFactor;
         float scaledHeight = imageHeight * scaleFactor;
@@ -82,11 +98,31 @@ public class OverlayView extends View {
         leftOffset = (viewWidth - scaledWidth) / 2f;
         topOffset = (viewHeight - scaledHeight) / 2f;
 
+        // 1. DRAW THE DYNAMIC BOUNDING BOX (THE GATEKEEPER'S VIEW)
+        if (gatekeeperBox != null) {
+            // Apply canvas scaling and handle front-camera mirroring mapping
+            float left = getCanvasX(gatekeeperBox.right);
+            float right = getCanvasX(gatekeeperBox.left);
+            float top = getCanvasY(gatekeeperBox.top);
+            float bottom = getCanvasY(gatekeeperBox.bottom);
+
+            // drawRect requires left to be smaller than right
+            canvas.drawRect(
+                    Math.min(left, right),
+                    top,
+                    Math.max(left, right),
+                    bottom,
+                    boundingBoxPaint
+            );
+        }
+
+        // 2. DRAW SKELETON AND POINTS
+        if (results == null || results.landmarks().isEmpty()) return;
+
         List<NormalizedLandmark> handLandmarks = results.landmarks().get(0);
 
         if (handLandmarks.size() >= 21) {
             drawSkeleton(canvas, handLandmarks);
-
             for (NormalizedLandmark landmark : handLandmarks) {
                 canvas.drawCircle(
                         getCanvasX(landmark.x()),
@@ -99,6 +135,7 @@ public class OverlayView extends View {
     }
 
     private float getCanvasX(float normalizedX) {
+        // (1f - normalizedX) handles the front-camera mirror effect
         return ((1f - normalizedX) * imageWidth * scaleFactor) + leftOffset;
     }
 

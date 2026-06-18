@@ -66,8 +66,10 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
     private boolean isChordLocked = false;
     private boolean hasDinged = false;
 
+    //for the event-driven ukulele fret detection
+    private boolean isInstrumentVerifiedForThisChord = false;
     private CountDownTimer flashcardTimer;
-    private final long TIME_LIMIT_MS = 13000;
+    private final long TIME_LIMIT_MS = 23000; //20 secs time limit for the flashcard
 
     // Gatekeeper Tracking Properties
     private InstrumentGatekeeper gatekeeper;
@@ -263,6 +265,8 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
         isChordLocked = false;
         matchStartTime = 0;
         hasDinged = false;
+
+        isInstrumentVerifiedForThisChord = false;
     }
 
     private void loadRandomFlashcard() {
@@ -329,21 +333,40 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
             String target = ukuleleChords[currentChordIndex];
 
             // 1. Run the Gatekeeper Verification pipeline
-            boolean isPresent = false;
-            if (gatekeeper != null && currentFrameBitmap != null) {
-                isPresent = gatekeeper.verifyInstrument(currentFrameBitmap, hand);
-            }
+            // ── 3. ADDED: EVENT-DRIVEN GATEKEEPER LOGIC ──
+            if (!isInstrumentVerifiedForThisChord) {
+                boolean isPresent = false;
+                android.graphics.RectF currentBox = null;
 
-            if (!isPresent) {
-                runOnUiThread(() -> {
-                    binding.overlayView.setImageSourceInfo(imageWidth, imageHeight);
-                    binding.overlayView.setResults(result);
+                if (gatekeeper != null && currentFrameBitmap != null) {
+                    isPresent = gatekeeper.verifyInstrument(currentFrameBitmap, hand);
+                    currentBox = gatekeeper.getBoundingBox(); // Grab the coordinates
+                }
 
-                    binding.txtFeedback.setText("Hold the Ukulele properly!");
-                    binding.txtFeedback.setBackgroundColor(Color.parseColor("#FFCDD2"));
-                    binding.txtFeedback.setTextColor(Color.parseColor("#B71C1C"));
-                });
-                return; // Halt Pipeline execution: block Chord Verification
+                final android.graphics.RectF finalBox = currentBox;
+
+                if (!isPresent) {
+                    runOnUiThread(() -> {
+                        binding.overlayView.setImageSourceInfo(imageWidth, imageHeight);
+                        binding.overlayView.setResults(result);
+
+                        // DRAW THE RED BOX
+                        binding.overlayView.setGatekeeperBox(finalBox);
+
+                        binding.txtFeedback.setText("Show your Ukulele first!");
+                        binding.txtFeedback.setBackgroundColor(Color.parseColor("#FFCDD2"));
+                        binding.txtFeedback.setTextColor(Color.parseColor("#B71C1C"));
+                    });
+                    return; // Halt Pipeline execution
+                } else {
+                    // Instrument found! Lock it in for the rest of this chord.
+                    isInstrumentVerifiedForThisChord = true;
+
+                    runOnUiThread(() -> {
+                        // ERASE THE RED BOX (They successfully gripped the fretboard)
+                        binding.overlayView.setGatekeeperBox(null);
+                    });
+                }
             }
 
             // 2. Run Chord Analysis pipeline if gatekeeper checks pass
@@ -352,6 +375,7 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
             runOnUiThread(() -> {
                 binding.overlayView.setImageSourceInfo(imageWidth, imageHeight);
                 binding.overlayView.setResults(result);
+                binding.overlayView.setGatekeeperBox(null);
 
                 if (resultObj.isMatch) {
                     if (matchStartTime == 0) matchStartTime = System.currentTimeMillis();
@@ -394,6 +418,7 @@ public class UkuleleActivity extends AppCompatActivity implements HandLandmarker
             matchStartTime = 0;
             runOnUiThread(() -> {
                 binding.overlayView.setResults(null);
+                binding.overlayView.setGatekeeperBox(null);
 
                 if (!isChordLocked) {
                     String target = ukuleleChords[currentChordIndex];
